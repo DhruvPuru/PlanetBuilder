@@ -46,7 +46,7 @@ class Simulator {
 				if (args[a].equals("-g") || args[a].equals("--group")) {
 					if (++a == args.length)
 						throw new IllegalArgumentException("Missing group name");
-					group = args[++a];
+					group = args[a];
 				} else if (args[a].equals("-s") || args[a].equals("--state")) {
 					if (++a == args.length)
 						throw new IllegalArgumentException("Missing state file");
@@ -234,13 +234,15 @@ class Simulator {
 		timer.start();
 		// initialize the player
 		Asteroid[] asteroids_copy = Arrays.copyOf(asteroids, asteroids.length);
-		final Asteroid[] a0_final = asteroids_copy;
+		final Asteroid[] asteroids_copy_final = asteroids_copy;
+		final Class <Player> player_class_final = player_class;
+		final long time_limit_final = time_limit;
 		final Player player = timer.call(new Callable <Player> () {
 
 			public Player call() throws Exception
 			{
-				Player p = player_class.newInstance();
-				p.init(a0_final, time_limit);
+				Player p = player_class_final.newInstance();
+				p.init(asteroids_copy_final, time_limit_final);
 				return p;
 			}
 		}, init_timeout);

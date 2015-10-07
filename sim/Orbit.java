@@ -49,11 +49,12 @@ public class Orbit implements Iterable <Point> {
 		double e_y = (f * r.y - rv * v.y) / GM;
 		double e2 = e_x * e_x + e_y * e_y;
 		double e = Math.sqrt(e2);
-		if (e >= 1) throw new InvalidOrbitException("Hyperbolic orbit");
+		if (e == 1) throw new InvalidOrbitException("Parabolic orbit");
+		if (e > 1) throw new InvalidOrbitException("Hyperbolic orbit");
 		// compute the major radius from r and υ
 		a = GM / (2.0 * GM / r1 - v2);
 		// compute the minor radius from a and e
-		b = a * Math.sqrt(1 - e2);
+		b = a * Math.sqrt(1.0 - e2);
 		// find the initial true anomaly θ
 		double cos_theta = (e_x * r.x + e_y * r.y) / (e * r1);
 		double theta = acos(cos_theta);
@@ -90,7 +91,7 @@ public class Orbit implements Iterable <Point> {
 		}
 		// generic ellipse case
 		double b_a = b / a;
-		double e = Math.sqrt(1 - b_a * b_a);
+		double e = Math.sqrt(1.0 - b_a * b_a);
 		double len = a * e;
 		double dir = A + Math.PI;
 		c.x = len * Math.cos(dir);
@@ -146,7 +147,7 @@ public class Orbit implements Iterable <Point> {
 		positionAt(t, r);
 		// compute the eccentricity
 		double b_a = b / a;
-		double e = Math.sqrt(1 - b_a * b_a);
+		double e = Math.sqrt(1.0 - b_a * b_a);
 		// compute the angle between the foci using the law of cosines
 		double r1 = Math.sqrt(r.x * r.x + r.y * r.y);
 		double r_a = r1 / a;
