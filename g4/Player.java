@@ -35,7 +35,7 @@ public class Player implements pb.sim.Player {
 	public void play(Asteroid[] asteroids,
 	                 double[] energy, double[] direction)
 	{
-		if (++time%10 == 0) {
+		if (++time%100 == 0) {
 			double min = Double.MAX_VALUE;
 			int minIndex1 = -1;
 			int minIndex2 = -1;
@@ -82,19 +82,15 @@ public class Player implements pb.sim.Player {
 			double v2 = v1 * 0.2 + 0.05;
 
 			for (double angle = furthestAngle - Math.PI/9; angle < furthestAngle + Math.PI/9; angle += Math.PI/36) {
-				for (double velocity = v2; velocity < v1; velocity += v2 * 0.05) {
+				for (double velocity = v2; velocity < 0.5 * v1; velocity += v2 * 0.10) {
 					double pushEnergy = 0.05 * mass * velocity * velocity * 0.5;
 					if (prediction(furthestFromSun, closerToSun, time, pushEnergy, angle)) {
+						System.out.println(indexToPush);
 						energy[indexToPush] = pushEnergy;
 						direction[indexToPush] = angle;
 					}
 				}
 			}
-
-			System.out.println(minIndex1);
-			System.out.println(minIndex2);
-			energy[minIndex1] = 10;
-			direction[minIndex1] = 3;
 		}
 
 		// if (++time <= time_of_push) 
@@ -156,14 +152,16 @@ public class Player implements pb.sim.Player {
 			}
 			// avoid allocating a new Point object for every position
 			// search for collision with other asteroids
+			Point p1 = source.orbit.velocityAt(time);
+			Point p2 = new Point();
 			double r = source.radius() + target.radius();
 			// look 10 years in the future for collision
-			for (long ft = 0 ; ft != 3650 * 0.5 ; ++ft) {
+			for (long ft = 0 ; ft != 365; ++ft) {
 				long t = time + ft;
 				if (t >= time_limit) 
 					break;
-				Point p1 = source.orbit.positionAt(t - source.epoch);
-				Point p2 = target.orbit.positionAt(t - target.epoch);
+				source.orbit.positionAt(t - source.epoch, p1);
+				target.orbit.positionAt(t - target.epoch, p2);
 				// if collision, return push to the simulator
 				if (Point.distance(p1, p2) < r) {
 					return true;
