@@ -35,7 +35,7 @@ class Simulator {
 		// initial state
 		Point[] asteroid_position = null;
 		double[] asteroid_mass = null;
-		// timeouts
+		// CPU timeouts in ms
 		long init_timeout = 0;
 		long play_timeout = 0;
 		// the player
@@ -183,7 +183,7 @@ class Simulator {
 		}
 		double E = Double.NaN;
 		try {
-			E = game(player, asteroid_position, asteroid_mass,
+			E = game(group, player, asteroid_position, asteroid_mass,
 			         gui, gui_fast_forward, gui_planets, gui_refresh_rate,
 			         time_limit, init_timeout, play_timeout);
 		} catch (Exception e) {
@@ -205,7 +205,8 @@ class Simulator {
 	}
 
 	// play the game
-	private static double game(Class <Player> player_class,
+	private static double game(String player_name,
+	                           Class <Player> player_class,
 	                           Point[]  asteroid_position,
 	                           double[] asteroid_mass,
 	                           boolean gui,
@@ -222,7 +223,6 @@ class Simulator {
 			throw new IllegalArgumentException();
 		Asteroid[] asteroids = new Asteroid [n_asteroids];
 		double total_mass = 0.0;
-		double total_energy = 0.0;
 		for (int i = 0 ; i != n_asteroids ; ++i) {
 			Orbit orbit = new Orbit(asteroid_position[i]);
 			double mass = asteroid_mass[i];
@@ -234,18 +234,21 @@ class Simulator {
 		timer.start();
 		// initialize the player
 		Asteroid[] asteroids_copy = Arrays.copyOf(asteroids, asteroids.length);
-		final Asteroid[] asteroids_copy_final = asteroids_copy;
-		final Class <Player> player_class_final = player_class;
-		final long time_limit_final = time_limit;
+		final Asteroid[] a0_final = asteroids_copy;
+		final Class <Player> c_final = player_class;
+		final long t_final = time_limit;
 		final Player player = timer.call(new Callable <Player> () {
 
 			public Player call() throws Exception
 			{
-				Player p = player_class_final.newInstance();
-				p.init(asteroids_copy_final, time_limit_final);
+				Player p = c_final.newInstance();
+				p.init(a0_final, t_final);
 				return p;
 			}
 		}, init_timeout);
+		// push information
+		double sum_energy = 0.0;
+		List <Push> pushes = new ArrayList <Push> ();
 		// initialize the GUI
 		Orbit[] planets = null;
 		HTTPServer server = null;
@@ -258,7 +261,8 @@ class Simulator {
 			planets = gui_planets ? planet_orbits() : new Orbit[0];
 			// send initial state until successful
 			int refresh = time_limit == 0 ? -1 : gui_refresh_rate;
-			String content = state(planets, asteroids, 0, total_energy, refresh);
+			String content = state(player_name, planets, asteroids,
+			                       pushes, sum_energy, 0, refresh);
 			gui(server, content);
 			gui_time = System.currentTimeMillis();
 		}
@@ -305,8 +309,9 @@ class Simulator {
 				try {
 					asteroids[i] = Asteroid.push(asteroids[i], time,
 					                             energy[i], direction[i]);
-					total_energy += energy[i];
+					sum_energy += energy[i];
 					time_of_last_event = time;
+					pushes.add(new Push(energy[i], time));
 				} catch (InvalidOrbitException e) {
 					System.err.println("Push failed: " + e.getMessage());
 				}
@@ -356,14 +361,14 @@ class Simulator {
 			}
 			if (gui && turns < 50) {
 				int refresh = turns < 0 ? -1 : gui_refresh_rate;
-				String content = state(planets, asteroids, time,
-				                       total_energy, refresh);
+				String content = state(player_name, planets, asteroids,
+				                       pushes, sum_energy, time, refresh);
 				gui(server, content);
 				gui_time = System.currentTimeMillis();
 			}
 		}
 		// return the energy if the planet was built
-		if (time != time_limit) return total_energy;
+		if (time != time_limit) return sum_energy;
 		// return the largest asteroid mass ratio otherwise
 		double max_mass = 0.0;
 		for (int i = 0 ; i != asteroids.length ; ++i)
@@ -457,7 +462,7 @@ class Simulator {
 		while ((line = file.readLine()) != null) {
 			String [] xym = line.split(",");
 			if (xym.length != 3)
-				throw new IllegalStateException("Invalid state file format");
+				throw new IllegalStateException("Invalid state file");
 			double x = Double.parseDouble(xym[0]);
 			double y = Double.parseDouble(xym[1]);
 			double m = Double.parseDouble(xym[2]);
@@ -468,17 +473,35 @@ class Simulator {
 		}
 		file.close();
 		if (point_list.size() < 2)
-			throw new IllegalStateException("Cannot have less than 2 asteroids");
-		double[] masses = masses_addr[0] = new double [mass_list.size()];
+			throw new IllegalStateException("Less than 2 asteroids");
+		double[] masses = new double [mass_list.size()];
+		masses_addr[0] = masses;
 		int i = 0;
 		for (Double m : mass_list)
 			masses[i++] = m;
 		return point_list.toArray(new Point [0]);
 	}
 
+	// information for a push
+	private static class Push {
+
+		public final double energy;
+		public final long time;
+
+		public Push(double energy, long time)
+		{
+			this.energy = energy;
+			this.time = time;
+		}
+	}
+
 	// return the state of the game
-	private static String state(Orbit[] planets, Asteroid[] asteroids,
-	                            long time, double energy, int refresh)
+	private static String state(String player_name,
+	                            Orbit[] planets,
+	                            Asteroid[] asteroids,
+	                            List <Push> pushes,
+	                            double sum_energy,
+	                            long time, int refresh)
 	{
 		StringBuffer buf = new StringBuffer();
 		// compute mass ratio
@@ -489,8 +512,14 @@ class Simulator {
 			if (max_mass < a.mass) max_mass = a.mass;
 		}
 		// header
-		buf.append(time + ", " + parse_real(energy, 2) + ", " +
-		           parse_ratio(max_mass / sum_mass) + "%, " + refresh);
+		buf.append(time + ", " +
+		           refresh + ", " +
+		           asteroids.length + ", " +
+		           planets.length + ", " +
+		           pushes.size() + ", " +
+		           human_double(sum_energy, 2) + ", " +
+		           human_ratio(max_mass / sum_mass) + ", " +
+		           player_name);
 		// solar system planets
 		Point p = new Point();
 		Point c = new Point();
@@ -515,6 +544,13 @@ class Simulator {
 			buf.append(", " + p.x + ", " + p.y + ", " + p_r);
 			buf.append(", " + c.x + ", " + c.y);
 			buf.append(", " + o.a + ", " + o.b);
+		}
+		// latest pushes
+		int i = pushes.size() - 50;
+		if (i < 0) i = 0;
+		while (i != pushes.size()) {
+			Push u = pushes.get(i++);
+			buf.append("\n" + human_double(u.energy, 2) + ", " + u.time);
 		}
 		return buf.toString();
 	}
@@ -622,6 +658,18 @@ class Simulator {
 		return files;
 	}
 
+	// last modified
+	private static long modified(Set <File> files)
+	{
+		long last_date = 0;
+		for (File file : files) {
+			long date = file.lastModified();
+			if (last_date < date)
+				last_date = date;
+		}
+		return last_date;
+	}
+
 	// compile and load
 	private static Class <Player> load(String group) throws IOException,
 	                                       ReflectiveOperationException
@@ -633,14 +681,8 @@ class Simulator {
 		if (!class_file.exists() && !source_file.exists())
 			throw new FileNotFoundException("Missing source code");
 		Set <File> source_files = directory(dir, ".java");
-		if (!class_file.exists())
-			class_file = null;
-		else for (File file : source_files)
-			if (file.lastModified() > class_file.lastModified()) {
-				class_file = null;
-				break;
-			}
-		if (class_file == null) {
+		if (!class_file.exists() || modified(source_files) >=
+		                            class_file.lastModified()) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			if (compiler == null)
 				throw new IOException("Cannot find Java compiler");
@@ -665,24 +707,23 @@ class Simulator {
 		return player_class;
 	}
 
-	// write the percentage in a better way
-	private static String parse_ratio(double x)
+	// parse a percentage with 1 decimal point
+	private static String human_ratio(double x)
 	{
+		if (x < 0.0) throw new IllegalArgumentException();
 		if (x >= 1.0) return "100";
 		int i = (int) (x / 0.001);
-		int a =  i       % 10;
+		int a =  i % 10;
 		int b = (i / 10) % 10;
 		int c = (i / 100);
-		if (c == 0) return "" + b + "." + a;
-		return "" + c + b + "." + a;
+		return c == 0 ? ("" + b + "." + a) : ("" + c + b + "." + a);
 	}
 
-	// write the double in a better way
-	private static String parse_real(double x, int decimals)
+	// parse a double number in human-readable form
+	private static String human_double(double x, int d)
 	{
 		if (x == 0.0) return "0";
-		if (decimals <= 0)
-			throw new IllegalArgumentException();
+		if (d <= 0) throw new IllegalArgumentException();
 		StringBuffer buf = new StringBuffer();
 		if (x < 0.0) {
 			buf.append("-");
@@ -703,7 +744,7 @@ class Simulator {
 			i = (int) (x / b);
 			x -= b * i;
 			buf.append(i);
-		} while (--decimals != 0);
+		} while (--d != 0);
 		buf.append(" x 10^" + (e - 1));
 		return buf.toString();
 	}

@@ -47,12 +47,18 @@ public class Point implements Comparable <Point> {
 		HashMap <Integer, HashSet <Integer>> E = null;
 		for (int i = 0 ; i != center.length ; ++i) {
 			if (center[i] == null) continue;
-			if (Double.isNaN(center[i].x) || Double.isInfinite(center[i].x))
-				throw new IllegalArgumentException("Invalid center x");
-			if (Double.isNaN(center[i].y) || Double.isInfinite(center[i].y))
-				throw new IllegalArgumentException("Invalid center y");
-			if (Double.isNaN(radius[i]) || Double.isInfinite(radius[i]))
-				throw new IllegalArgumentException("Invalid radius");
+			if (Double.isNaN(center[i].x))
+				throw new IllegalArgumentException("Center x is not a number");
+			if (Double.isInfinite(center[i].x))
+				throw new IllegalArgumentException("Center x is infinite");
+			if (Double.isNaN(center[i].y))
+				throw new IllegalArgumentException("Center y is not a number");
+			if (Double.isInfinite(center[i].y))
+				throw new IllegalArgumentException("Center y is infinite");
+			if (Double.isNaN(radius[i]))
+				throw new IllegalArgumentException("Radius is not a number");
+			if (Double.isInfinite(radius[i]))
+				throw new IllegalArgumentException("Radius is infinite");
 			for (int j = 0 ; j != i ; ++j) {
 				if (center[j] == null) continue;
 				double R = radius[i] + radius[j];
