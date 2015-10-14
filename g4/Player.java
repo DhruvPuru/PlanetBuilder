@@ -49,16 +49,15 @@ public class Player implements pb.sim.Player{
 		System.out.println("Init");
 		dynamicProgramming(asteroids);
 		System.out.println(asteroidOrder.size());
-		for(Asteroid a: asteroidOrder)
-		{
+		for(Asteroid a: asteroidOrder) {
 			System.out.println(a.mass);
 		}
 		if (Orbit.dt() != 24 * 60 * 60)
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
 	}
-	public void storeMass(Asteroid[] asteroids)
-	{
+
+	public void storeMass(Asteroid[] asteroids) {
 		double mass_sum = 0;
 		for(Asteroid asteroid: asteroids)
 		{
@@ -70,8 +69,7 @@ public class Player implements pb.sim.Player{
 		System.out.println("50% mass: " + fifty_percent_mass);
 	} 
 
-	public void updateMass(Asteroid asteroid1, Asteroid asteroid2, Asteroid[] asteroids)
-	{
+	public void updateMass(Asteroid asteroid1, Asteroid asteroid2, Asteroid[] asteroids) {
 		cached_asteroid_masses.remove(asteroid1);
 		cached_asteroid_masses.remove(asteroid2);
 		for(Asteroid asteroid: asteroids)
@@ -83,72 +81,17 @@ public class Player implements pb.sim.Player{
 		}
 	} 
 
-	private void printMassVelocity(Asteroid[] asteroids)
-	{
-		for(Asteroid asteroid: asteroids)
-		{
+	private void printMassVelocity(Asteroid[] asteroids) {
+		for Asteroid asteroid: asteroids) {
 			System.out.println("mass, velocity:" + asteroid.mass + ", " + asteroid.orbit.velocityAt(time));
 		}
-
-	}
-
-	public void optimize(ArrayList<Double> mass, Asteroid[] asteroids)
-	{
-		System.out.println("Optimizing");
-		ArrayList<Double> r = new ArrayList<Double>();
-		String results = null;
-		ArrayList<String[]> r1 = new ArrayList<String[]>();
-		Set<Asteroid> r2 = new HashSet<Asteroid>();
-		ArrayList<String> r3 = new ArrayList<String>();
-		for(double i: mass)
-		{
-			r3.add("0");
-			r.add(0.0);
-		}
-		for (int i = 0; i < mass.size(); i++)
-		{
-			double q = 0.0;
-			String q1 = "0 0 0";
-			for (int j = 0; j <= i; j++ )
-			{
-				if(q < (mass.get(j) + r.get(i-j)))
-				{
-					q =  mass.get(j) + r.get(i-j);
-					q1 = mass.get(j)+ " " + r3.get(i-j);
-					if( mass.get(j)!= 0 && r.get(i-j)!=0)
-					{
-						results = mass.get(j) + " " + r.get(i-j) + " " + q + "\n";
-						r1.add(results.split(" "));
-					}
-				}
-			}
-			r.set(i,q);
-			r3.set(i,q1);
-		}
-		String[] last = r3.get(r3.size()-1).split(" ");
-		for(int k = 0; k < asteroids.length; k++)
-		{
-			for(int j = 0; j < last.length; j++)
-			{
-				if(Double.parseDouble(last[j]) == asteroids[k].mass)
-				{
-					r2.add(asteroids[k]);
-				}
-			}
-		}
-		asteroidOrder = r2;
 	}
 
 	// try to push asteroid
 	public void play(Asteroid[] asteroids,
-		double[] energy, double[] direction)
-	{
+		double[] energy, double[] direction) {
 		num_closest_asteroids = Math.min(num_closest_asteroids, asteroids.length - 1);
 		if (++time%10 == 0 && time > collisionTime) {
-			// if(cached_asteroid_masses.size() < asteroids.length && indexToPush != -1 && indexToHit != -1)
-			// {
-			// 	updateMass(furthestFromSun, closerToSun, asteroids);
-			// }
 			push_closest_to_largest(asteroids, energy, direction);
 		}
 	}
