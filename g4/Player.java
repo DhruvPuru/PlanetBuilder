@@ -35,7 +35,7 @@ public class Player implements pb.sim.Player{
 	private Set<Asteroid> asteroidOrder;
 	private double fifty_percent_mass;
 
-	private int num_closest_asteroids = 2;
+	private int num_closest_asteroids = 4;
 	private int initial_number_of_asteroids;
 
 	//stores asteroid masses
@@ -114,6 +114,9 @@ public class Player implements pb.sim.Player{
 
 	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction)
 	{
+		if (time % 300 == 0) {
+			System.out.println("Year: " + time / 365);
+		}
 		PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(asteroids.length, new AsteroidComparator());
 		int largest_asteroid_idx = findLargestAsteroidIndex(asteroids);
 		double min = Double.MAX_VALUE;
@@ -139,12 +142,12 @@ public class Player implements pb.sim.Player{
 			double distBetweenPointAndSun = Point.distance(closest, sun);
 			double pushAngle;
 
-			if (distBetweenPointAndSun > largestAsteroidDistFromSun) {
-				pushAngle = Math.atan2(v.x, -v.y);
-			}
-			else {
-				pushAngle = Math.atan2(v.x, -v.y);
-			}
+			// if (distBetweenPointAndSun > largestAsteroidDistFromSun) {
+			// 	pushAngle = Math.atan2(v.x, -v.y);
+			// }
+			// else {
+			// 	pushAngle = Math.atan2(v.x, -v.y);
+			// }
 
 			double mass = other_asteroid.mass;
 			double arc = Math.atan2(closest.x - largestAsteroidPosition.x, 
@@ -153,20 +156,24 @@ public class Player implements pb.sim.Player{
 			// add 5-50% of current velocity in magnitude
 			double v1 = Math.sqrt(v.x * v.x + v.y * v.y);
 			double v2 = v1 * 0.20 + 0.05;
+			collisionTime = time;
 
-			int loopCount = 0;
-			for (double velocity = v2; velocity < 0.50 * v1; velocity += v2 * 0.1) {
-				double pushEnergy = 0.05 * mass * velocity * velocity * 0.5;
-				loopCount++;
-				if (prediction(other_asteroid, largest_asteroid, time, pushEnergy, pushAngle)) {
-					System.out.println("collision predicted" + " at energy: "
-						+ pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
-					timeSincePush = 0;
+			for (pushAngle = arc - Math.PI/18; pushAngle < arc + Math.PI/18; pushAngle += Math.PI/36) {
+				for (double velocity = v2; velocity < 0.4 * v1; velocity += v2 * 0.05) {
+					double pushEnergy = 0.05 * mass * velocity * velocity * 0.5;
+					long predictedTimeOfCollission = prediction(other_asteroid, largest_asteroid, 
+						time, pushEnergy, pushAngle);
+					if (predictedTimeOfCollission > 0) {
+						System.out.println("collision predicted" + " at energy: "
+							+ pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
+						timeSincePush = 0;
 
-					if (pushEnergy < leastEnergy) {
-						lowestEnergyAsteroid = other_asteroid;
-						leastEnergy = pushEnergy;
-						bestAngle = pushAngle;
+						if (pushEnergy < leastEnergy) {
+							collisionTime = predictedTimeOfCollission;
+							lowestEnergyAsteroid = other_asteroid;
+							leastEnergy = pushEnergy;
+							bestAngle = pushAngle;
+						}
 					}
 				}
 			}
@@ -186,7 +193,7 @@ public class Player implements pb.sim.Player{
 		direction[indexToPush] = bestAngle;
 	}
 
-	public boolean prediction(Asteroid source, Asteroid target, long time, double energy, 
+	public long prediction(Asteroid source, Asteroid target, long time, double energy, 
 		double direction) {
 		try {
 			source = Asteroid.push(source, time, energy, direction);
@@ -209,10 +216,10 @@ public class Player implements pb.sim.Player{
 				// if collision, return push to the simulator
 			if (Point.distance(p1, p2) < r) {
 				collisionTime = t;
-				return true;
+				return t;
 			}
 		}
-		return false;
+		return -1;
 	}
 
 	public class AsteroidComparator implements Comparator<Asteroid> {
