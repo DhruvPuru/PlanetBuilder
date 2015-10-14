@@ -92,38 +92,6 @@ public class Player implements pb.sim.Player{
 
 	}
 
-	public void dynamicProgramming(Asteroid[] asteroids)
-	{
-		System.out.println("Starting Dynamic Programming");
-		ArrayList<Double> masses = new ArrayList<Double>(); //exp
-		ArrayList<Double> energies = new ArrayList<Double>(); //stam
-		masses.add(0.0);
-		energies.add(0.0);
-		for(double i = Math.pow(10, 35); i <= Math.pow(10, 39); i += Math.pow(10,35))
-		{
-			boolean write = false;
-			for(int j = 0; j < asteroids.length; j++)
-			{
-				Point v = asteroids[j].orbit.velocityAt(time);
-				Double velocity = Math.sqrt(v.x * v.x + v.y * v.y);
-				Double mass = asteroids[j].mass;
-				Double energy = 0.5* mass * velocity * velocity;
-				// System.out.println("energy: " + energy);
-				if(energy >= i && energy < (i + Math.pow(10, 35)))
-				{
-					masses.add(asteroids[j].mass);
-					energies.add(energy);
-					write = true;
-				}
-			}
-			if (write == false)
-			{
-				masses.add(0.0);
-				energies.add(0.0);
-			}
-		}
-		optimize(masses, asteroids);
-	}
 	public void optimize(ArrayList<Double> mass, Asteroid[] asteroids)
 	{
 		System.out.println("Optimizing");
@@ -341,5 +309,38 @@ public class Player implements pb.sim.Player{
 				return 0;
 			}
 		}
+	}
+
+	public void dynamicProgramming(Asteroid[] asteroids)
+	{
+		System.out.println("Starting Dynamic Programming");
+		ArrayList<Double> masses = new ArrayList<Double>(); //exp
+		ArrayList<Double> energies = new ArrayList<Double>(); //stam
+		masses.add(0.0);
+		energies.add(0.0);
+		for(double i = Math.pow(10, 35); i <= Math.pow(10, 39); i += Math.pow(10,35))
+		{
+			boolean write = false;
+			for(int j = 0; j < asteroids.length; j++)
+			{
+				Point v = asteroids[j].orbit.velocityAt(time);
+				Double velocity = Math.sqrt(v.x * v.x + v.y * v.y);
+				Double mass = asteroids[j].mass;
+				Double energy = 0.5* mass * velocity * velocity;
+				// System.out.println("energy: " + energy);
+				if(energy >= i && energy < (i + Math.pow(10, 35)))
+				{
+					masses.add(asteroids[j].mass);
+					energies.add(energy);
+					write = true;
+				}
+			}
+			if (write == false)
+			{
+				masses.add(0.0);
+				energies.add(0.0);
+			}
+		}
+		optimize(masses, asteroids);
 	}
 }
