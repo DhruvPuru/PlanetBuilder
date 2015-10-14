@@ -78,4 +78,35 @@ public class Utils {
 		}
 		optimize(masses, asteroids);
 	}
+
+	public void perturb(Asteroid[] asteroids, double[] energy, double[] direction)
+	{
+		Asteroid a1;
+		//It's been a long time since a push, so perturb the system
+		if (timeSincePush > 7300) {
+			boolean validOrbitNotFound = true;
+			while (validOrbitNotFound) {
+				int i = random.nextInt(asteroids.length);
+				Point v = asteroids[i].orbit.velocityAt(time);
+				// add 5-50% of current velocity in magnitude
+				double v1 = Math.sqrt(v.x * v.x + v.y * v.y);
+				double v2 = v1 * (random.nextDouble() * 0.45 + 0.05);
+				// apply push at -π/8 to π/8 of current angle
+				double d1 = Math.atan2(v.y, v.x);
+				double d2 = d1 + (random.nextDouble() - 0.5) * Math.PI * 0.25;
+				// compute energy
+				double E = 0.5 * asteroids[i].mass * v2 * v2;
+				try {
+					a1 = Asteroid.push(asteroids[i], time, E, d2);
+					validOrbitNotFound = false;
+				} catch (InvalidOrbitException e) {
+					System.out.println("  Invalid orbit: " + e.getMessage());
+					validOrbitNotFound = false;
+					continue;
+				}
+				energy[i] = E;
+				direction[i] = d2;
+			}
+		}
+	}
 }
