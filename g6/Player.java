@@ -22,7 +22,21 @@ public class Player implements pb.sim.Player {
 
 	// number of retries
 	private int retries_per_turn = 1;
-	private int turns_per_retry = 3;
+	private int turns_per_retry = 10;
+
+    private int magnet_index = -1;
+
+    private int get_biggest_asteroid_index(Asteroid[] asteroids){
+        int max_mass_index = -1;
+        double max_mass = 0;
+        for(int i = 0; i < asteroids.length; i++){
+            if(asteroids[i].mass > max_mass){
+                max_mass_index = i;
+                max_mass = asteroids[i].mass;
+            }
+        }
+        return max_mass_index;
+    }
 
 	// print orbital information
 	public void init(Asteroid[] asteroids, long time_limit) {
@@ -39,57 +53,49 @@ public class Player implements pb.sim.Player {
 		if (++time <= time_of_push) return;
 		System.out.println("Year: " + (1 + time / 365));
 		System.out.println("Day: " + (1 + time % 365));
-		for (int retry = 1; retry <= retries_per_turn; ++retry) {
-			// pick a random asteroid and get its velocity
-			int i = random.nextInt(asteroids.length);
-			Point v = asteroids[i].orbit.velocityAt(time);
-			// add 2-10% of current velocity in magnitude
-			System.out.println("Try: " + retry + " / " + retries_per_turn);
-			double v1 = v.magnitude();
-			double v2 = v1 * (random.nextDouble() * 0.08 + 0.02);
-			System.out.println("  Speed: " + v1 + " +/- " + v2);
-			double d1 = v.direction();
-			double d2 = Utils.getPerpendicularAngle(d1);
-			System.out.println("  Angle: " + d1 + " -> " + d2);
-			// compute energy
-			double E = 0.5 * asteroids[i].mass * v2 * v2;
-			// try to push asteroid
-			Asteroid a1 = null;
-			try {
-				a1 = Asteroid.push(asteroids[i], time, E, d2);
 
-				collision.updateAsteroid(i, a1);
-			} catch (InvalidOrbitException e) {
-				System.out.println("  Invalid orbit: " + e.getMessage());
-				continue;
-			}
-			// avoid allocating a new Point object for every position
-			Point p1 = v, p2 = new Point();
+        int a2_index = get_biggest_asteroid_index(asteroids);
+        Asteroid a2 = asteroids[a2_index];
 
-			// search for collision with other asteroids
-			for (int j = 0; j != asteroids.length; ++j) {
-				if (i == j) continue;
-				Asteroid a2 = asteroids[j];
+		for (int retry = 1; retry <= retries_per_turn; ++retry) { 
+            
+            if (a2_index ==-1) {
+                System.out.println("NOOOOOOOOOOO INDEX ERROR");
+                System.exit(0);
+            }
+            for (int i = 0; i != asteroids.length; ++i) {
+                // TODO: to check magnet here!!!!
+                if (i == a2_index) continue;
+    			// pick a random asteroid and get its velocity
+    			// int i = random.nextInt(asteroids.length);
+    			Point v = asteroids[i].orbit.velocityAt(time);
+    			// add 2-10% of current velocity in magnitude
+    			System.out.println("Try: " + retry + " / " + retries_per_turn);
+    			double v1 = v.magnitude();
+    			double v2 = v1 * (random.nextDouble() * 0.08 + 0.02);
+    			System.out.println("  Speed: " + v1 + " +/- " + v2);
+    			double d1 = v.direction();
+    			// double d2 = Utils.getPerpendicularAngle(d1);
+                double d2 = d1;
+    			System.out.println("  Angle: " + d1 + " -> " + d2);
+    			// compute energy
+    			double E = 0.5 * asteroids[i].mass * v2 * v2;
+    			// try to push asteroid
+    			Asteroid a1 = null;
+    			try {
+    				a1 = Asteroid.push(asteroids[i], time, E, d2);
+    			} catch (InvalidOrbitException e) {
+    				System.out.println("  Invalid orbit: " + e.getMessage());
+    				continue;
+    			}
+    			// avoid allocating a new Point object for every position
+    			Point p1 = v, p2 = new Point();
 
-//				=================== A: INTEGRATION WITH NEW COLLISION CLASS ===================
-//				ArrayList<Long> nearestTime = collision.findCollisionTime(a1, j);
-//				if (nearestTime.size() > 0) {
-//					energy[i] = E;
-//					direction[i] = d2;
-//					// do not push again until collision happens
-//					long t = nearestTime.get(0);
-//					time_of_push = t + 1;
-//					System.out.println("  Collision prediction !");
-//					System.out.println("  Year: " + (1 + t / 365));
-//					System.out.println("  Day: " + (1 + t % 365));
-//					return;
-//
-//				}
-//				=================== A: END OF INTEGRATION WITH NEW COLLISION CLASS ===================
+    			// search for collision with other asteroids
+			
+				// Asteroid a2 = asteroids[j];
 
-//				=================== B: STEPPING THROUGH TIME AND CHECK DISTANCE ===================
-				// look 10 years in the future for collision
-				double r = a1.radius() + a2.radius();
+                double r = a1.radius() + a2.radius();
 				for (long ft = 0; ft != 3650; ++ft) {
 					long t = time + ft;
 					if (t >= time_limit) break;
@@ -107,7 +113,6 @@ public class Player implements pb.sim.Player {
 						return;
 					}
 				}
-//				=================== B: END OF STEPPING THROUGH TIME AND CHECK DISTANCE ===================
 
 			}
 			System.out.println("  No collision ...");

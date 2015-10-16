@@ -30,6 +30,13 @@ public class Point implements Comparable <Point> {
 		return Math.atan2(y, x);
 	}
 
+	// validate point
+	public boolean finite()
+	{
+		return !Double.isNaN(x) && !Double.isInfinite(x) &&
+		       !Double.isNaN(y) && !Double.isInfinite(y);
+	}
+
 	// Euclidean distance between two points
 	public static double distance(Point p1, Point p2)
 	{
@@ -47,18 +54,10 @@ public class Point implements Comparable <Point> {
 		HashMap <Integer, HashSet <Integer>> E = null;
 		for (int i = 0 ; i != center.length ; ++i) {
 			if (center[i] == null) continue;
-			if (Double.isNaN(center[i].x))
-				throw new IllegalArgumentException("Center x is not a number");
-			if (Double.isInfinite(center[i].x))
-				throw new IllegalArgumentException("Center x is infinite");
-			if (Double.isNaN(center[i].y))
-				throw new IllegalArgumentException("Center y is not a number");
-			if (Double.isInfinite(center[i].y))
-				throw new IllegalArgumentException("Center y is infinite");
-			if (Double.isNaN(radius[i]))
-				throw new IllegalArgumentException("Radius is not a number");
-			if (Double.isInfinite(radius[i]))
-				throw new IllegalArgumentException("Radius is infinite");
+			if (!center[i].finite())
+				throw new IllegalArgumentException("Center not finite");
+			if (Double.isNaN(radius[i]) || Double.isInfinite(radius[i]))
+				throw new IllegalArgumentException("Radius not finite");
 			for (int j = 0 ; j != i ; ++j) {
 				if (center[j] == null) continue;
 				double R = radius[i] + radius[j];
@@ -142,9 +141,9 @@ public class Point implements Comparable <Point> {
 	public int compareTo(Point p)
 	{
 		if (x < p.x) return -1;
-		if (x > p.x) return  1;
+		if (x > p.x) return +1;
 		if (y < p.y) return -1;
-		if (y > p.y) return  1;
+		if (y > p.y) return +1;
  		return 0;
 	}
 }

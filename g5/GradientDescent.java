@@ -149,7 +149,12 @@ public class GradientDescent {
 		double asteroidEnergy = Math.sqrt(vel.x*vel.x + vel.y*vel.y) * a.mass * 0.5;
 		double currentEnergy = asteroidEnergy * 0.65;
 		double delta = asteroidEnergy * 0.25;
-		Asteroid pushed = Asteroid.push(a, timeOfStart, currentEnergy, pushDirection);
+		Asteroid pushed = null;
+		try{
+			pushed = Asteroid.push(a, timeOfStart, currentEnergy, pushDirection);
+		} catch (Exception e) {
+			System.out.println(timeOfStart+","+currentEnergy+","+pushDirection);
+		}
 		double current = getClosestDistanceVaryTime(pushed, timeOfStart);
 		while(delta >= asteroidEnergy * 0.01) {
 			double dh = Double.MAX_VALUE;

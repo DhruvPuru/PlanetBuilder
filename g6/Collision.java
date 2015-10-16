@@ -158,7 +158,7 @@ public class Collision {
                 dt /= 2;
             }
         }
-        System.err.println("timeAt found");
+        // System.err.println("timeAt found");
         return t;
     }
 
@@ -171,8 +171,6 @@ public class Collision {
         ArrayList<Long> collision = new ArrayList<Long>();
         long t1, t2, k1, k2, period1, period2, colTime;
 
-//        System.out.println("======================findCollisionTime============================");
-
         for (int i = 0; i < intersect.size(); i++) {
             if (i == ignore_idx) {
                 continue;
@@ -183,13 +181,8 @@ public class Collision {
             period2 = asteroids[i].orbit.period();
             for (int j = 0; j < intersect.get(i).size(); j++) {
                 Point p = intersect.get(i).get(j);
-
-                System.out.println("======================intersect point .x============================" + p.x);
-                System.out.println("======================intersect point .y============================" + p.y);
                 t1 = timeAt(a, p);
                 t2 = timeAt(asteroids[i], p);
-                System.err.println("  t1: " + t1);
-                System.err.println("  t2: " + t2);
                 System.out.println(t1 + " " + t2);
                 k2 = 1;
                 // find int values of k1 and k2 such that t1 + k1*period1 = t2 + k2*period2

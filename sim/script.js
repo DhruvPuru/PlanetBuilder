@@ -25,16 +25,17 @@ function process(data)
 		data[i] = data[i].split(",");
 	if (data.length < 2)
 		throw "Invalid format: " + data.length;
-	if (data[0].length != 8)
+	if (data[0].length != 9)
 		throw "Invalid header format: " + data[0].length;
-	var time_now  = parse_integer(data[0][0]);
+	var game_time = parse_integer(data[0][0]);
 	var refresh   = parse_integer(data[0][1]);
 	var asteroids = parse_integer(data[0][2]);
 	var planets   = parse_integer(data[0][3]);
 	var pushes    = parse_integer(data[0][4]);
 	var sum_energy     = data[0][5].trim();
 	var max_mass_ratio = data[0][6].trim();
-	var player_name    = data[0][7].trim();
+	var cpu_time       = data[0][7].trim();
+	var player_name    = data[0][8].trim();
 	if (asteroids < 0 || planets < 0 || asteroids + planets == 0)
 		throw "Invalid number of asteroids & planets";
 	// find edge points for drawing
@@ -59,13 +60,14 @@ function process(data)
 	ctx.font = "15px Arial";
 	ctx.textAlign = "left";
 	ctx.fillStyle = "black";
-	ctx.fillText("Energy (sum): " + sum_energy + " Joules", 10, 15);
-	ctx.fillText("Mass (max): " + max_mass_ratio + "%", 10, 35);
-	ctx.fillText("Asteroids: " + asteroids, 10, 55);
-	ctx.fillText("Pushes: " + pushes, 10, 75);
-	ctx.fillText("Player: " + player_name, 10, 95);
-	ctx.fillText("Year: " + Math.floor(1 + time_now / 365), 10, 115);
-	ctx.fillText("Day: " + (1 + time_now % 365), 10, 135);
+	ctx.fillText("Energy (sum): " + sum_energy + " Joules",  10,  15);
+	ctx.fillText("CPU time: " + cpu_time + " seconds",       10,  35);
+	ctx.fillText("Mass (max): " + max_mass_ratio + "%",      10,  55);
+	ctx.fillText("Asteroids: " + asteroids,                  10,  75);
+	ctx.fillText("Pushes: " + pushes,                        10,  95);
+	ctx.fillText("Player: " + player_name,                   10, 115);
+	ctx.fillText("Year: " + Math.floor(1 + game_time / 365), 10, 135);
+	ctx.fillText("Day: " + (1 + game_time % 365), 10, 155);
 	// draw planets & asteroids
 	for (var i = 1 ; i != planets + asteroids + 1 ; ++i) {
 		// parse parameters

@@ -3,16 +3,11 @@ package pb.g2;
 import pb.sim.Point;
 import pb.sim.Orbit;
 import pb.sim.Asteroid;
-import pb.sim.InvalidOrbitException;
 
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.Random;
+import java.util.Collections;
 
 public class Player implements pb.sim.Player {
-
-	// used to pick asteroid and velocity boost randomly
-	private Random random = new Random();
 
 	// current time, time limit
 	private long time = -1;
@@ -22,6 +17,9 @@ public class Player implements pb.sim.Player {
 
 	private long next_push = 0;
 
+	private long period;
+	private boolean pushedThisPeriod = false;
+
 	// print orbital information
 	public void init(Asteroid[] asteroids, long time_limit)
 	{
@@ -29,112 +27,126 @@ public class Player implements pb.sim.Player {
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
 		this.number_of_asteroids = asteroids.length;
+		this.period = time_limit / this.number_of_asteroids;
 	}
 
 	// try to push asteroid
 	public void play(Asteroid[] asteroids,
-	                 double[] energy, double[] direction)
-	{
-		time++;
+	                 double[] energy, double[] direction) {
+        time++;
 
-		if (asteroids.length < number_of_asteroids) {
-			System.out.println("A collision just occurred at time " + time);
-			// Check for non-circular orbit
-			for (int i = 0; i < asteroids.length; i++) {
-				if (Math.abs(asteroids[i].orbit.a - asteroids[i].orbit.b) > 10e-6) {
-					// Correct for non-circular orbit
-					Point p = asteroids[i].orbit.positionAt(time - asteroids[i].epoch);
-
-					Point v1 = new Orbit(p).velocityAt(0); // Velocity for round
-
-					Point v = asteroids[i].orbit.velocityAt(time - asteroids[i].epoch);
-					Point dv = new Point(v1.x - v.x, v1.y - v.y);
-
-					System.out.println("v1: " + v1);
-					System.out.println("v: " + v);
-					System.out.println("dv: " + dv);
-
-					energy[i] = asteroids[i].mass * Math.pow(dv.magnitude(), 2) / 2;
-					direction[i] = dv.direction();
-				}
-			}
-
-			next_push = 0; // Void
-			number_of_asteroids = asteroids.length;
-			return;
+        if (time % period == 0) {
+			pushedThisPeriod = false;
 		}
 
-		if (time <= next_push) return;
+        int n = asteroids.length;
 
-		// Get largest radius asteroid
-		int largestMass = Utils.largestMass(asteroids);
+        if (asteroids.length < number_of_asteroids) {
+            System.out.println("A collision just occurred at time " + time);
+            // Check for non-circular orbit
+            for (int i = 0; i < asteroids.length; i++) {
+                if (Math.abs(asteroids[i].orbit.a - asteroids[i].orbit.b) > 10e-6) {
+                    // // Correct for non-circular orbit
+                    Push push = Hohmann.generateCorrection(asteroids[i], i, time);
+                    energy[i] = push.energy;
+                    direction[i] = push.direction;
+                }
+            }
 
-		for (int i = 0; i < asteroids.length; i++) {
-			if (i == largestMass)
-				continue;
-			// Try to push into largest
-			Point v1 = asteroids[i].orbit.velocityAt(time - asteroids[i].epoch);
+            next_push = 0; // Void
+            number_of_asteroids = asteroids.length;
+            pushedThisPeriod = true;
+            return;
+        }
 
-			// pick Asteroid 1
-			double r1 = asteroids[i].orbit.a; // Assume circular
-			double r2 = asteroids[largestMass].orbit.a; // Assume circular
+        if (time <= next_push) return;
 
-			// Transfer i to j orbit
-			double dv = Math.sqrt(pb.sim.Orbit.GM / r1) * (Math.sqrt(2 * r2 / (r1 + r2)) - 1);
-			double t = Math.PI * Math.sqrt(Math.pow(r1 + r2, 3) / (8 * Orbit.GM)) / Orbit.dt();
-			double e = asteroids[i].mass * Math.pow(dv, 2) / 2;
-			double d = v1.direction();
-			if (dv < 0) 
-				d += Math.PI;
+        // Pick asteroid to push to
+        // Sort asteroids in order of how attractive they are to become nucleus
+        ArrayList<ComparableAsteroid> sorted_asteroids = new ArrayList<ComparableAsteroid>();
+        Point asteroid_position = new Point();
+        Point sun = new Point(0, 0);
+        for (int i = 0; i < n; i++) {
+            asteroids[i].orbit.positionAt(time - asteroids[i].epoch, asteroid_position);
+            sorted_asteroids.add(new ComparableAsteroid(i, Point.distance(sun, asteroid_position), asteroids[i].mass));
+        }
+        Collections.sort(sorted_asteroids);
 
-			Asteroid a1 = Asteroid.push(asteroids[i], time, e, d);
+        // Get nucleus asteroid to which we will push all other asteroids
+        int nucleus_index = sorted_asteroids.get(n - 1).index;
+        Asteroid nucleus = asteroids[nucleus_index];
 
-			/*
-			Hashtable<Long, ArrayList<CollisionChecker.CollisionPair>> collisions =
-					CollisionChecker.checkCollision(asteroids, (long) Math.ceil(t), time, time_limit);
-			*/
+        // Of all remaining asteroids, find the one with lowest energy push
+        Push min_push = new Push(null, 0, Double.MAX_VALUE, 0, 0);
+        long min_push_time_of_collision = -1;
+        long time_of_collision = -1;
+        for (int i = n - 2; i >= 0; i--) {
+            int curr_asteroid_index = sorted_asteroids.get(i).index;
+            Asteroid curr_asteroid = asteroids[curr_asteroid_index];
 
-			long nt = CollisionChecker.checkCollision(a1, asteroids[largestMass], (long) Math.ceil(t), time, time_limit);
-			if (nt != -1) {
-				energy[i] = e; 
-				direction[i] = d;
-				next_push = nt;
-				return;
-			}
-		}
+            // Ignore asteroids with elliptical orbits
+            if (Math.abs(curr_asteroid.orbit.a - curr_asteroid.orbit.b) > 10e-5) {
+                continue;
+            }
 
-		for (int i = 0; i < asteroids.length; i++) {
-			if (i == largestMass)
-				continue;
-			for (int j = 0; j < asteroids.length; j++) {
-				if (j == largestMass)
-					continue;
-				// Try to push into largest
-				Point v1 = asteroids[i].orbit.velocityAt(time - asteroids[i].epoch);
+            Push push = Hohmann.generatePush(curr_asteroid, curr_asteroid_index, nucleus, time);
+            Asteroid pushed_asteroid = Asteroid.push(push.asteroid, time, push.energy, push.direction);
+            time_of_collision = CollisionChecker.checkCollision(pushed_asteroid, nucleus, push.expected_collision_time,
+                    time, time_limit);
+            if (time_of_collision == -1) {
+                continue;
+            }
+            if (push.energy < min_push.energy) {
+                min_push = push;
+                min_push_time_of_collision = time_of_collision;
+            }
+        }
+        if (min_push_time_of_collision != -1) {
+            System.out.println("Found a push");
+            energy[min_push.index] = min_push.energy;
+            direction[min_push.index] = min_push.direction;
+            next_push = min_push_time_of_collision;
+            pushedThisPeriod = true;
+            return;
+        }
 
-				// pick Asteroid 1
-				double r1 = asteroids[i].orbit.a; // Assume circular
-				double r2 = asteroids[j].orbit.a; // Assume circular
-
-				// Transfer i to j orbit
-				double dv = Math.sqrt(pb.sim.Orbit.GM / r1) * (Math.sqrt(2 * r2 / (r1 + r2)) - 1);
-				double t = Math.PI * Math.sqrt(Math.pow(r1 + r2, 3) / (8 * Orbit.GM)) / Orbit.dt();
-				double e = asteroids[i].mass * Math.pow(dv, 2) / 2;
-				double d = v1.direction();
-				if (dv < 0) 
-					d += Math.PI;
-
-				Asteroid a1 = Asteroid.push(asteroids[i], time, e, d);
-				long nt = CollisionChecker.checkCollision(a1, asteroids[j], (long) Math.ceil(t), time, time_limit);
-				if (nt != -1) {
-					energy[i] = e; 
-					direction[i] = d;
-					next_push = nt;
-					return;
-				}
-			}
-		}
+        if (!pushedThisPeriod) {
+            System.out.println("Give up");
+	        // ¯\_(ツ)_/¯
+	        giveUpAndTryEverything(nucleus_index, asteroids, energy, direction);
+	    }
+    }
 
 
-	}
+    /**
+     * Worst case: If we could not collide anything into the nucleus,
+     * try to collide any two asteroids into each other
+     */
+    public void giveUpAndTryEverything(int nucleus_index, Asteroid[] asteroids, double[] energy, double[] direction) {
+        int n = asteroids.length;
+        for (int i = 0; i < n; i++) {
+            if (i == nucleus_index) {
+                continue;
+            }
+            for (int j = 0; j < n; j++) {
+                if (j == nucleus_index) {
+                    continue;
+                }
+
+                Push push = Hohmann.generatePush(asteroids[i], i, asteroids[j], time);
+                Asteroid pushed_asteroid = Asteroid.push(asteroids[i], time, push.energy, push.direction);
+
+                long time_of_collision = CollisionChecker.checkCollision(pushed_asteroid, asteroids[j], push.expected_collision_time,
+                        time, time_limit);
+                if (time_of_collision != -1) {
+                    System.out.println("Found a collision in give up");
+                    energy[i] = push.energy;
+                    direction[i] = push.direction;
+                    next_push = time_of_collision;
+                    pushedThisPeriod = true;
+                    return;
+                }
+            }
+        }
+    }
 }

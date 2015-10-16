@@ -13,4 +13,14 @@ public class Push {
         this.direction = direction;
         this.time_of_push = time_of_push;
     }
+
+    @Override
+    public String toString() {
+        return "Push{" +
+                "asteroid_id=" + asteroid_id +
+                ", energy=" + energy +
+                ", direction=" + direction +
+                ", time_of_push=" + time_of_push +
+                '}';
+    }
 }

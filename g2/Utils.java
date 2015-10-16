@@ -6,10 +6,10 @@ public class Utils {
     /**
      * Returns index of asteroid of largest radius.
      */
-    public static int largestRadius(Asteroid[] asteroids) {
+    public static int largestOrbitRadius(Asteroid[] asteroids) {
         int largest = 0;
         for (int i = 1; i < asteroids.length; i++) {
-            if (asteroids[i].radius() > asteroids[largest].radius()) {
+            if (asteroids[i].orbit.a > asteroids[largest].orbit.a) {
                 largest = i;
             }
         }
