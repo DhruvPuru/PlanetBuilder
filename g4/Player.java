@@ -13,6 +13,7 @@ public class Player implements pb.sim.Player{
 	public static double dt = 24 * 60 * 60;
 	public static Point sun = new Point(0, 0);
 	public static final long NUMBER_OF_YEARS_AHEAD = 100;
+	public static final long TIME_THRESHOLD = 5000;
 
 	// used to PIck asteroid and velocity boost randomly
 	private Random random = new Random();
@@ -39,7 +40,7 @@ public class Player implements pb.sim.Player{
 	private Set<Asteroid> asteroidOrder;
 	private double fifty_percent_mass;
 
-	private int num_closest_asteroids = 4;
+	private int num_closest_asteroids = 3;
 	private int initial_number_of_asteroids;
 
 	//stores asteroid masses
@@ -54,13 +55,13 @@ public class Player implements pb.sim.Player{
 
 		//Printing out info in case it tells me (Dhruv) something 
 		for (Asteroid a : asteroids) {
-			System.out.println("Orbital radius to body radius ratio:"+ 
-				Point.distance(a.orbit.positionAt(0), sun) / a.radius());
+			// System.out.println("Orbital radius to body radius ratio:"+ 
+			// 	Point.distance(a.orbit.positionAt(0), sun) / a.radius());
 
 			double dt = 24 * 60 * 60;
 			double t = (Math.PI + Math.PI) * Math.sqrt(a.orbit.a / Orbit.GM) * a.orbit.a;
 			double t_dt = (long) Math.ceil(t / dt);
-			System.out.println("Time period: " + t_dt);
+			// System.out.println("Time period: " + t_dt);
 		}
 
 		if (Orbit.dt() != 24 * 60 * 60)
@@ -124,7 +125,7 @@ public class Player implements pb.sim.Player{
 
 	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction)
 	{
-		if (time % 300 == 0) {
+		if (time % 365 == 0) {
 			System.out.println("Year: " + time / 365);
 		}
 		PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(asteroids.length, new AsteroidComparator());
@@ -153,8 +154,7 @@ public class Player implements pb.sim.Player{
 			double pushAngle;
 
 			double mass = other_asteroid.mass;
-			double arc = Math.atan2(closest.x - largestAsteroidPosition.x, 
-				closest.y - largestAsteroidPosition.y);
+			double arc = Math.atan2(closest.y - largestAsteroidPosition.y, closest.x - largestAsteroidPosition.x);
 
 			// add 5-50% of current velocity in magnitude
 			double v1 = Math.sqrt(v.x * v.x + v.y * v.y);
@@ -164,7 +164,7 @@ public class Player implements pb.sim.Player{
 			for (pushAngle = arc - Math.PI/18; pushAngle < arc + Math.PI/18; pushAngle += Math.PI/36) {
 				for (double velocity = v2; velocity < 0.4 * v1; velocity += v2 * 0.05) {
 					double pushEnergy = 0.05 * mass * velocity * velocity * 0.5;
-					long predictedTimeOfCollission = prediction(other_asteroid, largest_asteroid, 
+					long predictedTimeOfCollission = improvedPrediction(other_asteroid, largest_asteroid, 
 						time, pushEnergy, pushAngle);
 					if (predictedTimeOfCollission > 0) {
 						System.out.println("collision predicted" + " at energy: "
@@ -202,6 +202,7 @@ public class Player implements pb.sim.Player{
 			source = Asteroid.push(source, time, energy, direction);
 		} catch (InvalidOrbitException e) {
 			e.printStackTrace();
+			return -1;
 		}
 
 		// avoid allocating a new Point object for every position
@@ -231,23 +232,24 @@ public class Player implements pb.sim.Player{
 			source = Asteroid.push(source, time, energy, direction);
 		} catch (InvalidOrbitException e) {
 			e.printStackTrace();
+			return -1;
 		}
 
 		Point p1 = new Point();
 		double r = source.radius() + target.radius();
 
-		double T = (Math.PI + Math.PI) * Math.sqrt(source.orbit.a / GM) * source.orbit.a;
+		double T = (Math.PI + Math.PI) * Math.sqrt(source.orbit.a / Orbit.GM) * source.orbit.a;
 		long T_dt = (long) Math.ceil(T / dt);
-		Sytem.out.println("Time period for asteroid: " + source.id + " is: " + T_dt);
+		// System.out.println("Time period for asteroid: " + source.id + " is: " + T_dt);
 
 		//Find points at which the source will be on the target's orbit
 		HashMap<Long, Point> timesOnOrbit = new HashMap<Long, Point>();
-		for (long ft = 0; ft < T_dt; ft++) {
+		for (long ft = 0; ft < Math.min(T_dt, TIME_THRESHOLD); ft++) {
 			long t = time + ft;
-			if (t >= time_limit) 
+			if (t >= time_limit || timesOnOrbit.keySet().size() == 4) 
 				break;
-			source.orbit.positionAt(t - source.epoch, p1);
 
+			source.orbit.positionAt(t - source.epoch, p1);
 			if (isOnOrbit(target.orbit, p1, 0.01)) {
 				timesOnOrbit.put(t, p1);
 			}
@@ -255,25 +257,25 @@ public class Player implements pb.sim.Player{
 
 		Point p2 = new Point();
 		for (Map.Entry<Long, Point> entry : timesOnOrbit.entrySet()) {
-
 			long timeOfIntersection = entry.getKey();
 			Point pointOfIntersection = entry.getValue();
 
-			for (int year = 1; years < NUMBER_OF_YEARS_AHEAD; year++) {
-				long timeToCheck = timeOfIntersection + year * T_dt
+			for (int year = 1; year < NUMBER_OF_YEARS_AHEAD; year++) {
+				long timeToCheck = timeOfIntersection + year * T_dt;
 				target.orbit.positionAt(timeToCheck - target.epoch, p2);
 				// if collision, return push to the simulator
 				if (Point.distance(p1, p2) < r) {
-					collisionTime = t;
-					return t;
+					collisionTime = timeToCheck;
+					return timeToCheck;
 				}
 			}
 		}
+		return -1;
 	}
 
 	public boolean isOnOrbit(Orbit o, Point p, double threshold) {
-		double e = Math.sqrt(1 - (b*b)/(a*a));
-		double c1 = o.a * o.e;
+		double e = Math.sqrt(1 - (o.b*o.b)/(o.a*o.a));
+		double c1 = o.a * e;
 		double cD = o.A + Math.PI;
 
 		double xC = c1 * Math.cos(cD);
@@ -282,7 +284,7 @@ public class Player implements pb.sim.Player{
 		double xVal = Math.pow((p.x - xC) * Math.cos(o.A) + (p.y-yC) * Math.sin(o.A), 2);
 		double yVal = Math.pow((p.x - xC) * Math.sin(o.A) - (p.y-yC) * Math.cos(o.A), 2);
 
-		double finalValToCheck = xVal/(a*a) + yVal/(b*b);
+		double finalValToCheck = xVal/(o.a*o.a) + yVal/(o.b*o.b);
 
 		if (Math.abs(1 - finalValToCheck) < threshold) {
 			return true;
