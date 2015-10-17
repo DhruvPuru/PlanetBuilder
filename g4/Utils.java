@@ -79,3 +79,9 @@
 // 		optimize(masses, asteroids);
 // 	}
 // }
+
+	// private void printMassVelocity(Asteroid[] asteroids) {
+	// 	for (Asteroid asteroid: asteroids) {
+	// 		System.out.println("mass, velocity:" + asteroid.mass + ", " + asteroid.orbit.velocityAt(time));
+	// 	}
+	// }

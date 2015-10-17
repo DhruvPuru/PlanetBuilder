@@ -93,17 +93,11 @@ public class Player implements pb.sim.Player{
 		}
 	} 
 
-	private void printMassVelocity(Asteroid[] asteroids) {
-		for (Asteroid asteroid: asteroids) {
-			System.out.println("mass, velocity:" + asteroid.mass + ", " + asteroid.orbit.velocityAt(time));
-		}
-	}
-
 	// try to push asteroid
 	public void play(Asteroid[] asteroids,
 		double[] energy, double[] direction) {
 		num_closest_asteroids = Math.min(num_closest_asteroids, asteroids.length - 1);
-		if (++time%100 == 0 && time > collisionTime) {
+		if (++time%10 == 0 && time > collisionTime) {
 			push_closest_to_largest(asteroids, energy, direction);
 		}
 	}
@@ -125,7 +119,7 @@ public class Player implements pb.sim.Player{
 
 	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction)
 	{
-		if (time % 365 == 0) {
+		if (time % 300 == 0) {
 			System.out.println("Year: " + time / 365);
 		}
 		PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(asteroids.length, new AsteroidComparator());
@@ -134,7 +128,7 @@ public class Player implements pb.sim.Player{
 		int minIndex = -1;
 		// if not yet time to push do nothing
 		largest_asteroid = asteroids[largest_asteroid_idx];
-		Point largestAsteroidPosition = largest_asteroid.orbit.positionAt(time);
+		Point largestAsteroidPosition = largest_asteroid.orbit.positionAt(time - largest_asteroid.epoch);
 		double largestAsteroidDistFromSun = Point.distance(largestAsteroidPosition, sun);
 
 		for (int i = 0; i < asteroids.length; i++) {
@@ -148,7 +142,7 @@ public class Player implements pb.sim.Player{
 
 		for (int i = 0; i < num_closest_asteroids; i++) {
 			Asteroid other_asteroid = heap.poll();
-			Point closest = other_asteroid.orbit.positionAt(time);
+			Point closest = other_asteroid.orbit.positionAt(time - largest_asteroid.epoch);
 			Point v = other_asteroid.orbit.velocityAt(time);
 			double distBetweenPointAndSun = Point.distance(closest, sun);
 			double pushAngle;
@@ -235,8 +229,8 @@ public class Player implements pb.sim.Player{
 			return -1;
 		}
 
-		Point p1 = new Point();
 		double r = source.radius() + target.radius();
+		Point p1, p2;
 
 		double T = (Math.PI + Math.PI) * Math.sqrt(source.orbit.a / Orbit.GM) * source.orbit.a;
 		long T_dt = (long) Math.ceil(T / dt);
@@ -249,24 +243,28 @@ public class Player implements pb.sim.Player{
 			if (t >= time_limit || timesOnOrbit.keySet().size() == 4) 
 				break;
 
-			source.orbit.positionAt(t - source.epoch, p1);
-			if (isOnOrbit(target.orbit, p1, 0.01)) {
+			p1 = source.orbit.positionAt(t - target.epoch);
+			if (isOnOrbit(target.orbit, p1, 0.05)) {
 				timesOnOrbit.put(t, p1);
 			}
 		}
 
-		Point p2 = new Point();
+		p1 = new Point();
 		for (Map.Entry<Long, Point> entry : timesOnOrbit.entrySet()) {
 			long timeOfIntersection = entry.getKey();
 			Point pointOfIntersection = entry.getValue();
+			p2 = new Point();
 
 			for (int year = 1; year < NUMBER_OF_YEARS_AHEAD; year++) {
 				long timeToCheck = timeOfIntersection + year * T_dt;
-				target.orbit.positionAt(timeToCheck - target.epoch, p2);
-				// if collision, return push to the simulator
-				if (Point.distance(p1, p2) < r) {
-					collisionTime = timeToCheck;
-					return timeToCheck;
+				for (int i = -4; i < 5; i++) {
+					target.orbit.positionAt(timeToCheck + i - target.epoch, p2);
+					source.orbit.positionAt(timeToCheck + i - source.epoch, p1);
+					// if collision, return push to the simulator
+					if (Point.distance(p1, p2) < r) {
+						collisionTime = timeToCheck;
+						return timeToCheck;
+					}
 				}
 			}
 		}
@@ -274,20 +272,34 @@ public class Player implements pb.sim.Player{
 	}
 
 	public boolean isOnOrbit(Orbit o, Point p, double threshold) {
-		double e = Math.sqrt(1 - (o.b*o.b)/(o.a*o.a));
-		double c1 = o.a * e;
-		double cD = o.A + Math.PI;
+		double ab_max = Math.max(o.a, o.b);
+		double ab_min = Math.min(o.a, o.b);
 
+		double e = Math.sqrt(1 - (ab_min * ab_min)/(ab_max * ab_max));
+		// System.out.println("e: " + e);
+		double c1 = o.a * e;
+		double A;
+
+		if (Double.isNaN(o.A)) {
+			A = 0;
+		}
+		else {
+			A = o.A;
+		}
+
+		double cD = A + Math.PI;
 		double xC = c1 * Math.cos(cD);
 		double yC = c1 * Math.sin(cD);
 
-		double xVal = Math.pow((p.x - xC) * Math.cos(o.A) + (p.y-yC) * Math.sin(o.A), 2);
-		double yVal = Math.pow((p.x - xC) * Math.sin(o.A) - (p.y-yC) * Math.cos(o.A), 2);
+		double xVal = (p.x - xC) * Math.cos(A) + (p.y-yC) * Math.sin(A);
+		double yVal = (p.x - xC) * Math.sin(A) - (p.y-yC) * Math.cos(A);
 
-		double finalValToCheck = xVal/(o.a*o.a) + yVal/(o.b*o.b);
+		//This should be ~1 for an intersection
+		double finalValToCheck = (xVal * xVal)/(o.a * o.a) + (yVal * yVal)/(o.b * o.b);
+		// System.out.println("Valuetocheck: " + finalValToCheck);
 
 		if (Math.abs(1 - finalValToCheck) < threshold) {
-			System.out.println("Found orbital intersection: " + finalValToCheck);
+			// System.out.println("Found orbital intersection: " + finalValToCheck);
 			return true;
 		}
 		return false;
