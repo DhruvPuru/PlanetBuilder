@@ -45,14 +45,20 @@ public class Player implements pb.sim.Player{
 	public void init(Asteroid[] asteroids, long time_limit)
 	{
 		initial_number_of_asteroids = asteroids.length;
-		asteroidOrder = new HashSet<Asteroid>();
 		storeMass(asteroids);
 		System.out.println("Init");
-		// dynamicProgramming(asteroids);
-		System.out.println(asteroidOrder.size());
-		for(Asteroid a: asteroidOrder) {
-			System.out.println(a.mass);
+
+		//Printing out info in case it tells me (Dhruv) something 
+		for (Asteroid a : asteroids) {
+			System.out.println("Orbital radius to body radius ratio:"+ 
+				Point.distance(a.orbit.positionAt(0), sun) / a.radius());
+
+			double dt = 24 * 60 * 60;
+			double t = (Math.PI + Math.PI) * Math.sqrt(a.orbit.a / Orbit.GM) * a.orbit.a;
+			double t_dt = (long) Math.ceil(t / dt);
+			System.out.println("Time period: " + t_dt);
 		}
+
 		if (Orbit.dt() != 24 * 60 * 60)
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
@@ -142,13 +148,6 @@ public class Player implements pb.sim.Player{
 			double distBetweenPointAndSun = Point.distance(closest, sun);
 			double pushAngle;
 
-			// if (distBetweenPointAndSun > largestAsteroidDistFromSun) {
-			// 	pushAngle = Math.atan2(v.x, -v.y);
-			// }
-			// else {
-			// 	pushAngle = Math.atan2(v.x, -v.y);
-			// }
-
 			double mass = other_asteroid.mass;
 			double arc = Math.atan2(closest.x - largestAsteroidPosition.x, 
 				closest.y - largestAsteroidPosition.y);
@@ -200,9 +199,9 @@ public class Player implements pb.sim.Player{
 		} catch (InvalidOrbitException e) {
 			e.printStackTrace();
 		}
-			// avoid allocating a new Point object for every position
-			// search for collision with other asteroids
 
+		// avoid allocating a new Point object for every position
+		// search for collision with other asteroids
 		Point p1 = source.orbit.velocityAt(time);
 		Point p2 = new Point();
 		double r = source.radius() + target.radius();
@@ -220,6 +219,25 @@ public class Player implements pb.sim.Player{
 			}
 		}
 		return -1;
+	}
+
+	public boolean isOnOrbit(Orbit o, double x, double y, double threshold) {
+		double e = Math.sqrt(1 - (b*b)/(a*a));
+		double c1 = o.a * o.e;
+		double cD = o.A + Math.PI;
+
+		double xC = c1 * Math.cos(cD);
+		double yC = c1 * Math.sin(cD);
+
+		double xVal = Math.pow((x - xC) * Math.cos(o.A) + (y-yC) * Math.sin(o.A), 2);
+		double yVal = Math.pow((x - xC) * Math.sin(o.A) - (y-yC) * Math.cos(o.A), 2);
+
+		double finalValToCheck = xVal/(a*a) + yVal/(b*b);
+
+		if (Math.abs(1 - finalValToCheck) < threshold) {
+			return true;
+		}
+		return false;
 	}
 
 	public class AsteroidComparator implements Comparator<Asteroid> {
