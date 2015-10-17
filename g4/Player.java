@@ -9,13 +9,17 @@ import java.util.Random;
 import java.util.*;
 
 public class Player implements pb.sim.Player{
+
+	public static double dt = 24 * 60 * 60;
+	public static Point sun = new Point(0, 0);
+	public static final long NUMBER_OF_YEARS_AHEAD = 100;
+
 	// used to PIck asteroid and velocity boost randomly
 	private Random random = new Random();
-	private Point sun = new Point(0, 0);
 
 	// current time, time limit
 	private long time = -1;
-	private long time_limit = -1;
+	private long time_limit = -1; 
 
 	// time until next push
 	private long time_of_push = 0;
@@ -221,7 +225,53 @@ public class Player implements pb.sim.Player{
 		return -1;
 	}
 
-	public boolean isOnOrbit(Orbit o, double x, double y, double threshold) {
+	public long improvedPrediction(Asteroid source, Asteroid target, long time, double energy, 
+		double direction) {
+		try {
+			source = Asteroid.push(source, time, energy, direction);
+		} catch (InvalidOrbitException e) {
+			e.printStackTrace();
+		}
+
+		Point p1 = new Point();
+		double r = source.radius() + target.radius();
+
+		double T = (Math.PI + Math.PI) * Math.sqrt(source.orbit.a / GM) * source.orbit.a;
+		long T_dt = (long) Math.ceil(T / dt);
+		Sytem.out.println("Time period for asteroid: " + source.id + " is: " + T_dt);
+
+		//Find points at which the source will be on the target's orbit
+		HashMap<Long, Point> timesOnOrbit = new HashMap<Long, Point>();
+		for (long ft = 0; ft < T_dt; ft++) {
+			long t = time + ft;
+			if (t >= time_limit) 
+				break;
+			source.orbit.positionAt(t - source.epoch, p1);
+
+			if (isOnOrbit(target.orbit, p1, 0.01)) {
+				timesOnOrbit.put(t, p1);
+			}
+		}
+
+		Point p2 = new Point();
+		for (Map.Entry<Long, Point> entry : timesOnOrbit.entrySet()) {
+
+			long timeOfIntersection = entry.getKey();
+			Point pointOfIntersection = entry.getValue();
+
+			for (int year = 1; years < NUMBER_OF_YEARS_AHEAD; year++) {
+				long timeToCheck = timeOfIntersection + year * T_dt
+				target.orbit.positionAt(timeToCheck - target.epoch, p2);
+				// if collision, return push to the simulator
+				if (Point.distance(p1, p2) < r) {
+					collisionTime = t;
+					return t;
+				}
+			}
+		}
+	}
+
+	public boolean isOnOrbit(Orbit o, Point p, double threshold) {
 		double e = Math.sqrt(1 - (b*b)/(a*a));
 		double c1 = o.a * o.e;
 		double cD = o.A + Math.PI;
@@ -229,8 +279,8 @@ public class Player implements pb.sim.Player{
 		double xC = c1 * Math.cos(cD);
 		double yC = c1 * Math.sin(cD);
 
-		double xVal = Math.pow((x - xC) * Math.cos(o.A) + (y-yC) * Math.sin(o.A), 2);
-		double yVal = Math.pow((x - xC) * Math.sin(o.A) - (y-yC) * Math.cos(o.A), 2);
+		double xVal = Math.pow((p.x - xC) * Math.cos(o.A) + (p.y-yC) * Math.sin(o.A), 2);
+		double yVal = Math.pow((p.x - xC) * Math.sin(o.A) - (p.y-yC) * Math.cos(o.A), 2);
 
 		double finalValToCheck = xVal/(a*a) + yVal/(b*b);
 
