@@ -103,7 +103,7 @@ public class Player implements pb.sim.Player{
 	public void play(Asteroid[] asteroids,
 		double[] energy, double[] direction) {
 		num_closest_asteroids = Math.min(num_closest_asteroids, asteroids.length - 1);
-		if (++time%10 == 0 && time > collisionTime) {
+		if (++time%100 == 0 && time > collisionTime) {
 			push_closest_to_largest(asteroids, energy, direction);
 		}
 	}
@@ -154,7 +154,7 @@ public class Player implements pb.sim.Player{
 			double pushAngle;
 
 			double mass = other_asteroid.mass;
-			double arc = Math.atan2(closest.y - largestAsteroidPosition.y, closest.x - largestAsteroidPosition.x);
+			double arc = Math.atan2(closest.x - largestAsteroidPosition.x, closest.y - largestAsteroidPosition.y);
 
 			// add 5-50% of current velocity in magnitude
 			double v1 = Math.sqrt(v.x * v.x + v.y * v.y);
@@ -287,6 +287,7 @@ public class Player implements pb.sim.Player{
 		double finalValToCheck = xVal/(o.a*o.a) + yVal/(o.b*o.b);
 
 		if (Math.abs(1 - finalValToCheck) < threshold) {
+			System.out.println("Found orbital intersection: " + finalValToCheck);
 			return true;
 		}
 		return false;
@@ -297,9 +298,9 @@ public class Player implements pb.sim.Player{
 			double a1Distance = Point.distance(a1.orbit.positionAt(time), largest_asteroid.orbit.positionAt(time));
 			double a2Distance = Point.distance(a2.orbit.positionAt(time), largest_asteroid.orbit.positionAt(time));
 
-			if ( a1Distance < a2Distance ) {
+			if (a1Distance < a2Distance ) {
 				return -1;
-			} else if ( a2Distance < a1Distance ) {
+			} else if (a2Distance < a1Distance ) {
 				return 1;
 			} else {
 				return 0;
