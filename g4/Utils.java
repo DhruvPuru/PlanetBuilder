@@ -1,4 +1,4 @@
-public class Utils {
+/*public class Utils {
 	public static void optimize(ArrayList<Double> mass, Asteroid[] asteroids) {
 		System.out.println("Optimizing");
 		ArrayList<Double> r = new ArrayList<Double>();
@@ -78,4 +78,4 @@ public class Utils {
 		}
 		optimize(masses, asteroids);
 	}
-}
+}*/
