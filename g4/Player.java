@@ -34,11 +34,6 @@ public class Player implements pb.sim.Player{
 		numAsteroids = asteroids.length;
 		asteroidOrder = new HashSet<Asteroid>();
 		System.out.println("Init");
-		// dynamicProgramming(asteroids);
-		System.out.println(asteroidOrder.size());
-		for(Asteroid a: asteroidOrder) {
-			System.out.println(a.mass);
-		}
 		if (Orbit.dt() != 24 * 60 * 60)
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
@@ -140,8 +135,7 @@ public class Player implements pb.sim.Player{
 		} catch (InvalidOrbitException e) {
 			System.out.println("Invalid orbit predicted with energy " + energy + " and angle " + direction);
 		}
-		// search for collision with other asteroids
-
+		
 		Point p1 = source.orbit.velocityAt(time - source.epoch);
 		Point p2 = new Point();
 		double r = source.radius() + target.radius();
