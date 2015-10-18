@@ -5,26 +5,14 @@ import pb.sim.Orbit;
 import pb.sim.Asteroid;
 import pb.sim.InvalidOrbitException;
 
-import java.util.Random;
 import java.util.*;
 
 public class Player implements pb.sim.Player{
-	// used to PIck asteroid and velocity boost randomly
-	private Random random = new Random();
 	private Point sun = new Point(0, 0);
 
 	// current time, time limit
 	private long time = -1;
 	private long time_limit = -1;
-
-	// time until next push
-	private long time_of_push = 0;
-
-	// number of retries
-	private int retries_per_turn = 1;
-	private int turns_per_retry = 3;
-
-	private int timeSincePush = 0;
 	private long collisionTime = -1;
 
 	private Asteroid furthestFromSun;
@@ -42,8 +30,7 @@ public class Player implements pb.sim.Player{
 	private HashMap<Asteroid, Double> cached_asteroid_masses = new HashMap<Asteroid, Double>();
 
 	// print orbital information
-	public void init(Asteroid[] asteroids, long time_limit)
-	{
+	public void init(Asteroid[] asteroids, long time_limit) {
 		numAsteroids = asteroids.length;
 		asteroidOrder = new HashSet<Asteroid>();
 		System.out.println("Init");
@@ -90,8 +77,7 @@ public class Player implements pb.sim.Player{
 		direction[largestIndex] = pushAngle;
 	}
 
-	public int findLargestAsteroidIndex(Asteroid[] asteroids)
-	{
+	public int findLargestAsteroidIndex(Asteroid[] asteroids) {
 		double max_mass = 0;
 		int idx = 0;
 		for(int i = 0; i < asteroids.length; i++)
@@ -105,11 +91,15 @@ public class Player implements pb.sim.Player{
 		return idx;
 	}
 
-	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction)
-	{
+	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction) {
 		int largestAsteroid_idx = findLargestAsteroidIndex(asteroids);
 		largestAsteroid = asteroids[largestAsteroid_idx];
 		double r2 = largestAsteroid.orbit.a;
+
+		//For picking the best push
+		double bestEnergy = Double.MAX_VALUE;
+		double bestAngle = 0;
+		int bestAsteroidIndex = 0;
 
 		for (int i = 0; i < asteroids.length; i++) {
 			if (i != largestAsteroid_idx) {
@@ -122,19 +112,24 @@ public class Player implements pb.sim.Player{
 					* (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
 
 				double pushEnergy = mass * dv * dv * 0.5;
-				collisionTime = time;
+				long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
 
-				long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, collisionTime, pushEnergy, pushAngle);
-
-				if (predictedTimeOfCollision > 0) {
+				//If collision predicted and it's better than previous best collision
+				if (predictedTimeOfCollision > 0 && pushEnergy < bestEnergy) {
 					System.out.println("collision predicted" + " at energy: "
 							+ pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
-					timeSincePush = 0;
-					energy[i] = pushEnergy;
-					direction[i] = pushAngle;
-					return;
+					bestEnergy = pushEnergy;
+					bestAngle = pushAngle;
+					bestAsteroidIndex = i;
+					collisionTime = predictedTimeOfCollision;
 				}
 			}
+		}
+
+		//If no reasonable push was detected, do nothing 
+		if (bestEnergy < Double.MAX_VALUE) {
+			energy[bestAsteroidIndex] = bestEnergy;
+			direction[bestAsteroidIndex] = bestAngle;	
 		}
 	}
 
@@ -151,7 +146,7 @@ public class Player implements pb.sim.Player{
 		Point p2 = new Point();
 		double r = source.radius() + target.radius();
 		// look 10 years in the future for collision
-		for (long ft = 0 ; ft != 3650 / 2; ++ft) {
+		for (long ft = 0 ; ft != 3650; ++ft) {
 			long t = time + ft;
 			if (t >= time_limit) 
 				break;
@@ -160,7 +155,6 @@ public class Player implements pb.sim.Player{
 			// if collision, return push to the simulator
 			if (Point.distance(p1, p2) < r) {
 				System.out.println("Collision predicted at time " + t);
-				collisionTime = t;
 				return t;
 			}
 		}
