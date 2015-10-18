@@ -1,4 +1,4 @@
-public class Utils {
+/*public class Utils {
 	public static void optimize(ArrayList<Double> mass, Asteroid[] asteroids) {
 		System.out.println("Optimizing");
 		ArrayList<Double> r = new ArrayList<Double>();
@@ -78,4 +78,34 @@ public class Utils {
 		}
 		optimize(masses, asteroids);
 	}
-}
+
+	  public void storeMass(Asteroid[] asteroids) {
+    double mass_sum = 0;
+    for(Asteroid asteroid: asteroids)
+    {
+      cached_asteroid_masses.put(asteroid, asteroid.mass);
+      mass_sum += asteroid.mass;
+      System.out.println(asteroid.mass);
+    }
+    fifty_percent_mass = 0.5*mass_sum;
+    System.out.println("50% mass: " + fifty_percent_mass);
+  } 
+
+  public void updateMass(Asteroid asteroid1, Asteroid asteroid2, Asteroid[] asteroids) {
+    cached_asteroid_masses.remove(asteroid1);
+    cached_asteroid_masses.remove(asteroid2);
+    for(Asteroid asteroid: asteroids)
+    {
+      if(!cached_asteroid_masses.containsKey(asteroid))
+      {
+        cached_asteroid_masses.put(asteroid, asteroid.mass);
+      }
+    }
+  } 
+
+    private void printMassVelocity(Asteroid[] asteroids) {
+    for (Asteroid asteroid: asteroids) {
+      System.out.println("mass, velocity:" + asteroid.mass + ", " + asteroid.orbit.velocityAt(time));
+    }
+  }
+}*/
