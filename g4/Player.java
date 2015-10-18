@@ -34,8 +34,6 @@ public class Player implements pb.sim.Player{
 	private int indexToHit = -1;
 	private Set<Asteroid> asteroidOrder;
 	private double fifty_percent_mass;
-	private double sourceRadius;
-	private double targetRadius;
 
 	private int num_otherAsteroidLocation_asteroids = 4;
 	private int numAsteroids;
@@ -48,7 +46,6 @@ public class Player implements pb.sim.Player{
 	{
 		numAsteroids = asteroids.length;
 		asteroidOrder = new HashSet<Asteroid>();
-		storeMass(asteroids);
 		System.out.println("Init");
 		// dynamicProgramming(asteroids);
 		System.out.println(asteroidOrder.size());
@@ -83,7 +80,7 @@ public class Player implements pb.sim.Player{
 		//Velocity for a hypothetical circular orbit at this position
 		//TODO: optimize for energy of this push
 		Point circularVelocity = new Orbit(position).velocityAt(0);
-		Point currentVelocity = asteroid.orbit.velocityAt(time - largestAsteroid.epoch);
+		Point currentVelocity = largestAsteroid.orbit.velocityAt(time - largestAsteroid.epoch);
 		Point dv = new Point(circularVelocity.x - currentVelocity.x, circularVelocity.y - currentVelocity.y);
 
 		double pushEnergy = largestAsteroid.mass * Math.pow(dv.magnitude(), 2) / 2;
@@ -112,22 +109,15 @@ public class Player implements pb.sim.Player{
 	{
 		int largestAsteroid_idx = findLargestAsteroidIndex(asteroids);
 		largestAsteroid = asteroids[largestAsteroid_idx];
-		Point largestAsteroidPosition = largestAsteroid.orbit.positionAt(time - largestAsteroid.epoch);
-		double largestAsteroidDistFromSun = Point.distance(largestAsteroidPosition, sun);
-
-		double r2 = targetRadius = largestAsteroid.radius();
+		double r2 = largestAsteroid.orbit.a;
 
 		for (int i = 0; i < asteroids.length; i++) {
 			if (i != largestAsteroid_idx) {
 				Asteroid otherAsteroid = asteroids[i];
-				Point otherAsteroidLocation = otherAsteroid.orbit.positionAt(time - otherAsteroid.epoch);
-				Point v = otherAsteroid.orbit.velocityAt(time - otherAsteroid.epoch);
-				double distBetweenPointAndSun = Point.distance(otherAsteroidLocation, sun);
-
 				double mass = otherAsteroid.mass;
 				double pushAngle = otherAsteroid.orbit.velocityAt(time - otherAsteroid.epoch).direction();
 
-				double r1 = sourceRadius = otherAsteroid.radius();
+				double r1 = otherAsteroid.orbit.a;
 				double dv = Math.sqrt(Orbit.GM / r1)
 					* (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
 
