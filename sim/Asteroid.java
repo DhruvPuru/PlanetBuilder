@@ -5,30 +5,43 @@ public class Asteroid {
 	// the density of all asteroids (default is Sun density)
 	static double density = 1410.0;
 
+	// unique ids for asteroids
+	private static long serial_id = -1;
+
 	// mass of the asteroid
 	public final double mass;
 
 	// creation time (used to find position)
 	public final long epoch;
 
+	// unique ID of asteroid
+	public final long id;
+
 	// orbit of the asteroid
 	public final Orbit orbit;
 
-	// radius of the asteroid
-	public double radius()
-	{
-		double volume = mass / density;
-		return Math.cbrt(0.75 * volume / Math.PI);
-	}
-
-	// create a asteroid by setting all parameters
-	public Asteroid(Orbit orbit, double mass, long epoch)
+	// internal constructor that sets all parameters including id
+	private Asteroid(Orbit orbit, double mass, long epoch, long id)
 	{
 		if (orbit == null || mass <= 0 || epoch < 0)
 			throw new IllegalArgumentException();
 		this.orbit = orbit;
 		this.mass  = mass;
 		this.epoch = epoch;
+		this.id = id;
+	}
+
+	// create a asteroid by setting all parameters
+	public Asteroid(Orbit orbit, double mass, long epoch)
+	{
+		this(orbit, mass, epoch, ++Asteroid.serial_id);
+	}
+
+	// radius of the asteroid
+	public double radius()
+	{
+		double volume = mass / density;
+		return Math.cbrt(0.75 * volume / Math.PI);
 	}
 
 	// find which (sets of) asteroids collide at given time (ignore nulls)
@@ -93,6 +106,7 @@ public class Asteroid {
 		v.x += magnitude * Math.cos(direction);
 		v.y += magnitude * Math.sin(direction);
 		// return (new object of) the "same" asteroid with new orbit
-		return new Asteroid(new Orbit(r, v), asteroid.mass, time);
+		Orbit orbit = new Orbit(r, v);
+		return new Asteroid(orbit, asteroid.mass, time, asteroid.id);
 	}
 }
