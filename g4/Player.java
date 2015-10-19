@@ -34,7 +34,7 @@ public class Player implements pb.sim.Player{
 	private Set<Asteroid> asteroidOrder;
 	private double fifty_percent_mass;
 
-	private int num_closest_asteroids = 5;
+	private int num_closest_asteroids = 3;
 	private int initial_number_of_asteroids;
 
 	//stores asteroid masses
@@ -184,8 +184,52 @@ public class Player implements pb.sim.Player{
 			push_closest_to_largest(asteroids, energy, direction);
 		}
 	}
+	public class OrbitComparator implements Comparator<Asteroid>
+	{
+		public int compare(Asteroid a1, Asteroid a2)
+		{
+			return (int)(getDistanceFromSun(a1) - getDistanceFromSun(a2));
+		}
 
-	public int findLargestAsteroidIndex(Asteroid[] asteroids)
+
+		public double getDistanceFromSun(Asteroid a)
+		{
+			return Point.distance(a.orbit.positionAt(time), new Point(0,0));
+		}
+	}
+
+	public int getBestAsteroid(Asteroid[] asteroids, double percent)
+	{
+		ArrayList<Asteroid> center_asteroids = new ArrayList<Asteroid>();
+		ArrayList<Asteroid> sorted_asteroids = new ArrayList<Asteroid>(Arrays.asList(asteroids));
+		Collections.sort(sorted_asteroids, new OrbitComparator());
+
+		int num_asteroids = sorted_asteroids.size();
+		int select_asteroids = (int)(percent*num_asteroids);
+		double max_mass = 0;
+		Asteroid max_asteroid;
+		for (int i = (int)(0.5*num_asteroids - 0.5*select_asteroids); i < (int)(0.5*num_asteroids + 0.5*select_asteroids); i++)
+		{
+			if(sorted_asteroids.get(i).mass > max_mass)
+			{
+				max_mass = asteroids[i].mass;
+				max_asteroid = asteroids[i];
+			}
+
+		}
+		for(int i = 0; i < asteroids.length; i++)
+		{
+			if(max_mass == asteroids[i].mass)
+			{
+				return i;
+			}
+		}
+		return -1;
+
+	}
+
+
+	public int findLargestAsteroidIdx(Asteroid[] asteroids)
 	{
 		double max_mass = 0;
 		int idx = 0;
@@ -234,7 +278,7 @@ public class Player implements pb.sim.Player{
 	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction)
 	{
 		PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(asteroids.length, new AsteroidComparator());
-		int largest_asteroid_idx = findLargestAsteroidIndex(asteroids);
+		int largest_asteroid_idx = getBestAsteroid(asteroids, 0.5);
 		double min = Double.MAX_VALUE;
 		int minIndex = -1;
 		// if not yet time to push do nothing
