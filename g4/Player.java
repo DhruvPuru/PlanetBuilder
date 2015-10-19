@@ -25,12 +25,14 @@ public class Player implements pb.sim.Player{
 
 	private int num_otherAsteroidLocation_asteroids = 4;
 	private int numAsteroids;
+	private boolean firstCollision;
 
 	//stores asteroid masses
 	private HashMap<Asteroid, Double> cached_asteroid_masses = new HashMap<Asteroid, Double>();
 
 	// print orbital information
 	public void init(Asteroid[] asteroids, long time_limit) {
+		firstCollision = false;
 		numAsteroids = asteroids.length;
 		asteroidOrder = new HashSet<Asteroid>();
 		System.out.println("Init");
@@ -46,6 +48,7 @@ public class Player implements pb.sim.Player{
 			System.out.println("Year: " + time / 365);
 		}
 		if (asteroids.length != numAsteroids) {
+			firstCollision = true;
 			correctCollidedOrbit(asteroids, energy, direction);
 			numAsteroids = asteroids.length;
 		}
@@ -87,7 +90,14 @@ public class Player implements pb.sim.Player{
 	}
 
 	public void push_closest_to_largest(Asteroid[] asteroids, double[] energy, double[] direction) {
-		int largestAsteroid_idx = getBestAsteroid(asteroids, 0.5);
+		int largestAsteroid_idx;
+		if (firstCollision) {
+			largestAsteroid_idx = findLargestAsteroidIndex(asteroids);
+		}
+		else {
+			largestAsteroid_idx = getBestAsteroid(asteroids, 0.5);
+		}
+		
 		largestAsteroid = asteroids[largestAsteroid_idx];
 		double r2 = largestAsteroid.orbit.a;
 
@@ -106,7 +116,7 @@ public class Player implements pb.sim.Player{
 				double dv = Math.sqrt(Orbit.GM / r1)
 					* (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
 
-        if (dv < 0) pushAngle += Math.PI;
+        		if (dv < 0) pushAngle += Math.PI;
 
 				double pushEnergy = mass * dv * dv * 0.5;
 				long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
@@ -182,7 +192,7 @@ public class Player implements pb.sim.Player{
 
 		public double getDistanceFromSun(Asteroid a)
 		{
-			return Point.distance(a.orbit.positionAt(time), new Point(0,0));
+			return Point.distance(a.orbit.positionAt(time), sun);
 		}
 	}
 
