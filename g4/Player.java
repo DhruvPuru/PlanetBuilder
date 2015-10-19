@@ -106,6 +106,8 @@ public class Player implements pb.sim.Player{
 				double dv = Math.sqrt(Orbit.GM / r1)
 					* (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
 
+        if (dv < 0) pushAngle += Math.PI;
+
 				double pushEnergy = mass * dv * dv * 0.5;
 				long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
 
