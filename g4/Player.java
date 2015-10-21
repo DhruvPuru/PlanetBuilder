@@ -105,15 +105,13 @@ public class Player implements pb.sim.Player{
     }
 
     largestAsteroid = asteroids[largestAsteroid_idx];
-    PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(11, new AsteroidComparator()); 
-
+    PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(new AsteroidComparator()); 
 
     for (int i = 0; i < asteroids.length; i++) {
       if (i != largestAsteroid_idx) heap.add(asteroids[i]);
     }
 
     r2 = largestAsteroid.orbit.a;
-
     double cumulativeMass = largestAsteroid.mass;
 
     do {
@@ -247,24 +245,31 @@ public class Player implements pb.sim.Player{
   public int getBestAsteroid(Asteroid[] asteroids) {
     int bestAsteroidIndex = -1;
     double bestEnergy = Double.MAX_VALUE;
-    double r1, r2, pushEnergy, dv;
+    double r1, r2, pushEnergy, dv, sumMass;
     Asteroid target, source;
     double[] hohmannSums = new double[asteroids.length];
     Arrays.fill(hohmannSums, 0.0);
 
     for (int i = 0; i < asteroids.length; i++) {
+      sumMass = asteroids[i].mass;
       target = asteroids[i];
       r2 = target.orbit.a;
       //sum of energies required to transfer all other asteroids to asteroid i
-      for (int j = 0; j < asteroids.length; j++) {
-        if (i != j) {
-          source = asteroids[j];
-          r1 = source.orbit.a;
-          dv = Math.sqrt(Orbit.GM / r1)
-            * (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
-          pushEnergy = source.mass * dv * dv * 0.5;
-          hohmannSums[i] += pushEnergy;
+      PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(new AsteroidComparator());
+      for (int t = 0; t < asteroids.length; t++) {
+        if (t != i) {
+          heap.add(asteroids[t]);
         }
+      }
+
+      while (sumMass < totalMass) {
+        source = heap.poll();
+        r1 = source.orbit.a;
+        dv = Math.sqrt(Orbit.GM / r1)
+            * (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
+        pushEnergy = source.mass * dv * dv * 0.5;
+        hohmannSums[i] += pushEnergy;
+        sumMass += source.mass;
       }
 
       if (hohmannSums[i] < bestEnergy) {
