@@ -8,9 +8,9 @@ import pb.sim.InvalidOrbitException;
 import java.util.*;
 
 public class Player implements pb.sim.Player{
-  private Point sun = new Point(0, 0);
+  public static final int FUTURE_DAYS_TO_SEARCH = 5;
 
-  // current time, time limit
+  private Point sun = new Point(0, 0);
   private long time = -1;
   private long time_limit = -1;
   private long collisionTime = -1;
@@ -27,6 +27,11 @@ public class Player implements pb.sim.Player{
   private int numAsteroids;
   private boolean firstCollision = true;
   private boolean[] colliding;
+
+  private double bestEnergy;
+  private int bestAsteroidIndex;
+  private double bestAngle;
+  private long timeOfNextPush;
 
   //stores asteroid masses
   private HashMap<Asteroid, Double> cached_asteroid_masses = new HashMap<Asteroid, Double>();
@@ -46,10 +51,10 @@ public class Player implements pb.sim.Player{
   // try to push asteroid
   public void play(Asteroid[] asteroids,
       double[] energy, double[] direction) {
-    correctCollidedOrbits(asteroids, energy, direction);
     if (time % 365 == 0) {
       System.out.println("Year: " + time / 365);
     }
+    correctCollidedOrbits(asteroids, energy, direction);
     if (asteroids.length != numAsteroids) {
       colliding = new boolean[asteroids.length];
       firstCollision = false;
@@ -57,6 +62,12 @@ public class Player implements pb.sim.Player{
     }
     else if (++time%10 == 0 && time > collisionTime) {
       pushAllToLargest(asteroids, energy, direction);
+    }
+    if (timeOfNextPush == time && bestEnergy < Double.MAX_VALUE) {
+      System.out.println("Push at time: " + time + " bestEnergy " + bestEnergy + " bestAngle: " + bestAngle);
+      colliding[bestAsteroidIndex] = true;
+      energy[bestAsteroidIndex] = bestEnergy;
+      direction[bestAsteroidIndex] = bestAngle;
     }
   }
 
@@ -105,10 +116,8 @@ public class Player implements pb.sim.Player{
     largestAsteroid = asteroids[largestAsteroid_idx];
     double r2 = largestAsteroid.orbit.a;
 
-    //For picking the best push
-    double bestEnergy = Double.MAX_VALUE;
-    double bestAngle = 0;
-    int bestAsteroidIndex = 0;
+    //Reset best energy
+    bestEnergy = Double.MAX_VALUE;
 
     for (int i = 0; i < asteroids.length; i++) {
       if (i != largestAsteroid_idx) {
@@ -123,26 +132,27 @@ public class Player implements pb.sim.Player{
         if (dv < 0) pushAngle += Math.PI;
 
         double pushEnergy = mass * dv * dv * 0.5;
-        long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
 
-        //If collision predicted and it's better than previous best collision
-        if (predictedTimeOfCollision > 0 && pushEnergy < bestEnergy) {
-          System.out.println("collision predicted" + " at energy: "
-              + pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
-          bestEnergy = pushEnergy;
-          bestAngle = pushAngle;
-          bestAsteroidIndex = i;
-          collisionTime = predictedTimeOfCollision;
+        for (int days = 0; days < FUTURE_DAYS_TO_SEARCH; days++) {
+          long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time + days, pushEnergy, pushAngle);
+
+          //If collision predicted and it's better than previous best collision
+          if (predictedTimeOfCollision > 0 && pushEnergy < bestEnergy) {
+            System.out.println("collision predicted" + " at energy: "
+                + pushEnergy + " and direction: " + pushAngle + " at year: " + time + days / 365);
+            bestEnergy = pushEnergy;
+            bestAngle = pushAngle;
+            bestAsteroidIndex = i;
+            timeOfNextPush = time + days;
+            collisionTime = predictedTimeOfCollision;
+          }
         }
       }
     }
 
-    //If no reasonable push was detected, do nothing 
-    if (bestEnergy < Double.MAX_VALUE) {
-      colliding[bestAsteroidIndex] = true;
-      energy[bestAsteroidIndex] = bestEnergy;
-      direction[bestAsteroidIndex] = bestAngle;	
-    }
+    System.out.println("Time diff: " + (timeOfNextPush - time));
+    // if (bestEnergy < Double.MAX_VALUE) {	
+    // }
   }
 
   public long prediction(Asteroid source, Asteroid target, long time, double energy, 
@@ -165,7 +175,7 @@ public class Player implements pb.sim.Player{
       target.orbit.positionAt(t - target.epoch, p2);
       // if collision, return push to the simulator
       if (Point.distance(p1, p2) < r) {
-        System.out.println("Collision predicted at time " + t);
+        System.out.println("Collision predicted at year " + t / 365 + " day: " + t % 365 + " with energy: " + energy);
         return t;
       }
     }
