@@ -18,9 +18,10 @@ public class Player implements pb.sim.Player{
   private Asteroid furthestFromSun;
   private Asteroid closerToSun;
   private Asteroid largestAsteroid;
+  private HashSet<Long> asteroidIds;
+  private HashSet<Long> preCollisionAsteroidIds;
   private int indexToPush = -1;
   private int indexToHit = -1;
-  private Set<Asteroid> asteroidOrder;
   private double fifty_percent_mass;
 
   private int num_otherAsteroidLocation_asteroids = 4;
@@ -32,16 +33,17 @@ public class Player implements pb.sim.Player{
 
   // print orbital information
   public void init(Asteroid[] asteroids, long time_limit) {
+    asteroidIds = new HashSet<Long>();
     firstCollision = false;
     colliding = new boolean[asteroids.length];
     numAsteroids = asteroids.length;
-    asteroidOrder = new HashSet<Asteroid>();
     System.out.println("Init");
     if (Orbit.dt() != 24 * 60 * 60)
       throw new IllegalStateException("Time quantum is not a day");
     this.time_limit = time_limit;
     for (int i = 0; i < asteroids.length; i++) {
       totalMass += asteroids[i].mass;
+      asteroidIds.add(asteroids[i].id);
     }
   }
 
@@ -53,6 +55,11 @@ public class Player implements pb.sim.Player{
       System.out.println("Year: " + time / 365);
     }
     if (asteroids.length != numAsteroids) {
+      preCollisionAsteroidIds = asteroidIds;
+      asteroidIds = new HashSet<Long>();
+      for (int i = 0; i < asteroids.length; i++) {
+        asteroidIds.add(asteroids[i].id);
+      }
       colliding = new boolean[asteroids.length];
       firstCollision = false;
       numAsteroids = asteroids.length;
@@ -93,6 +100,23 @@ public class Player implements pb.sim.Player{
       }
     }
     return idx;
+  }
+
+  public int findTargetAsteroidIndex(Asteroid[] asteroids) {
+    long targetId = -1;
+
+    for (Long id : asteroidIds) {
+      if (preCollisionAsteroidIds.contains(id)) {
+        targetId = id;
+      }
+    }
+
+    for (int i = 0; i < asteroids.length; i++) {
+      if (asteroids[i].id == targetId) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   public void pushAllToLargest(Asteroid[] asteroids, double[] energy, double[] direction) {
@@ -245,7 +269,7 @@ public class Player implements pb.sim.Player{
   public int getBestAsteroid(Asteroid[] asteroids) {
     int bestAsteroidIndex = -1;
     double bestEnergy = Double.MAX_VALUE;
-    double r1, r2, pushEnergy, dv, sumMass;
+    double r1, pushEnergy, dv, sumMass;
     Asteroid target, source;
     double[] hohmannSums = new double[asteroids.length];
     Arrays.fill(hohmannSums, 0.0);
