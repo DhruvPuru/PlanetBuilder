@@ -27,9 +27,8 @@ public class Player implements pb.sim.Player{
   private int numAsteroids;
   private boolean firstCollision = true;
   private boolean[] colliding;
-
-  //stores asteroid masses
-  private HashMap<Asteroid, Double> cached_asteroid_masses = new HashMap<Asteroid, Double>();
+  private double r2;
+  private double totalMass = 0;
 
   // print orbital information
   public void init(Asteroid[] asteroids, long time_limit) {
@@ -41,6 +40,9 @@ public class Player implements pb.sim.Player{
     if (Orbit.dt() != 24 * 60 * 60)
       throw new IllegalStateException("Time quantum is not a day");
     this.time_limit = time_limit;
+    for (int i = 0; i < asteroids.length; i++) {
+      totalMass += asteroids[i].mass;
+    }
   }
 
   // try to push asteroid
@@ -103,46 +105,51 @@ public class Player implements pb.sim.Player{
     }
 
     largestAsteroid = asteroids[largestAsteroid_idx];
-    double r2 = largestAsteroid.orbit.a;
+    PriorityQueue<Asteroid> heap = new PriorityQueue<Asteroid>(11, new AsteroidComparator()); 
 
-    //For picking the best push
-    double bestEnergy = Double.MAX_VALUE;
-    double bestAngle = 0;
-    int bestAsteroidIndex = 0;
 
     for (int i = 0; i < asteroids.length; i++) {
-      if (i != largestAsteroid_idx) {
-        Asteroid otherAsteroid = asteroids[i];
-        double mass = otherAsteroid.mass;
-        double pushAngle = otherAsteroid.orbit.velocityAt(time - otherAsteroid.epoch).direction();
+      if (i != largestAsteroid_idx) heap.add(asteroids[i]);
+    }
 
-        double r1 = otherAsteroid.orbit.a;
-        double dv = Math.sqrt(Orbit.GM / r1)
-          * (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
+    r2 = largestAsteroid.orbit.a;
 
-        if (dv < 0) pushAngle += Math.PI;
+    double cumulativeMass = largestAsteroid.mass;
 
-        double pushEnergy = mass * dv * dv * 0.5;
-        long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
+    do {
+      Asteroid otherAsteroid = heap.poll();
+      double mass = otherAsteroid.mass;
+      cumulativeMass += mass;
 
-        //If collision predicted and it's better than previous best collision
-        if (predictedTimeOfCollision > 0 && pushEnergy < bestEnergy) {
-          System.out.println("collision predicted" + " at energy: "
-              + pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
-          bestEnergy = pushEnergy;
-          bestAngle = pushAngle;
-          bestAsteroidIndex = i;
-          collisionTime = predictedTimeOfCollision;
+      double pushAngle = otherAsteroid.orbit.velocityAt(time - otherAsteroid.epoch).direction();
+
+      double r1 = otherAsteroid.orbit.a;
+      double dv = Math.sqrt(Orbit.GM / r1)
+        * (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
+
+      if (dv < 0) pushAngle += Math.PI;
+
+      double pushEnergy = mass * dv * dv * 0.5;
+      long predictedTimeOfCollision = prediction(otherAsteroid, largestAsteroid, time, pushEnergy, pushAngle);
+
+      //If collision predicted and it's better than previous best collision
+      if (predictedTimeOfCollision > 0) {
+        System.out.println("collision predicted" + " at energy: "
+            + pushEnergy + " and direction: " + pushAngle + " at year: " + time / 365);
+
+        int bestAsteroidIndex = 0;
+        for (int i = 0; i < asteroids.length; i++) {
+          if (asteroids[i] == otherAsteroid) {
+            bestAsteroidIndex = i;
+            break;
+          }
         }
+        colliding[bestAsteroidIndex] = true;
+        energy[bestAsteroidIndex] = pushEnergy;
+        direction[bestAsteroidIndex] = pushAngle;	
+        collisionTime = predictedTimeOfCollision > collisionTime ? predictedTimeOfCollision : collisionTime;
       }
-    }
-
-    //If no reasonable push was detected, do nothing 
-    if (bestEnergy < Double.MAX_VALUE) {
-      colliding[bestAsteroidIndex] = true;
-      energy[bestAsteroidIndex] = bestEnergy;
-      direction[bestAsteroidIndex] = bestAngle;	
-    }
+    } while (cumulativeMass < totalMass / 2);
   }
 
   public long prediction(Asteroid source, Asteroid target, long time, double energy, 
@@ -174,13 +181,20 @@ public class Player implements pb.sim.Player{
 
   public class AsteroidComparator implements Comparator<Asteroid> {
     public int compare(Asteroid a1, Asteroid a2) {
-      double a1Distance = Point.distance(a1.orbit.positionAt(time - a1.epoch), largestAsteroid.orbit.positionAt(time - largestAsteroid.epoch));
-      double a2Distance = Point.distance(a2.orbit.positionAt(time - a2.epoch), largestAsteroid.orbit.positionAt(time - largestAsteroid.epoch));
+      double m1 = a1.mass;
+      double m2 = a2.mass;
+      double r11 = a1.orbit.a;
+      double r12 = a2.orbit.a;
+      double dv1 = Math.sqrt(Orbit.GM / r11) * (Math.sqrt((2 * r2)/(r11 + r2)) - 1);
+      double dv2 = Math.sqrt(Orbit.GM / r12) * (Math.sqrt((2 * r2)/(r12 + r2)) - 1);
 
-      if ( a1Distance < a2Distance ) {
-        return -1;
-      } else if ( a2Distance < a1Distance ) {
+      double e1 = m1 * dv1 * dv1 * 0.5;
+      double e2 = m2 * dv2 * dv2 * 0.5;
+
+      if (e1 > e2) {
         return 1;
+      } else if (e1 < e2) {
+        return -1;
       } else {
         return 0;
       }
