@@ -99,7 +99,7 @@ public class Player implements pb.sim.Player{
       largestAsteroid_idx = findLargestAsteroidIndex(asteroids);
     }
     else {
-      largestAsteroid_idx = getBestAsteroid(asteroids, 0.5);
+      largestAsteroid_idx = getBestAsteroid(asteroids);
     }
 
     largestAsteroid = asteroids[largestAsteroid_idx];
@@ -228,6 +228,37 @@ public class Player implements pb.sim.Player{
       }
     }
     return -1;
+  }
+
+  public int getBestAsteroid(Asteroid[] asteroids) {
+    int bestAsteroidIndex = -1;
+    double bestEnergy = Double.MAX_VALUE;
+    double r1, r2, pushEnergy, dv;
+    Asteroid target, source;
+    double[] hohmannSums = new double[asteroids.length];
+    Arrays.fill(hohmannSums, 0.0);
+
+    for (int i = 0; i < asteroids.length; i++) {
+      target = asteroids[i];
+      r2 = target.orbit.a;
+      //sum of energies required to transfer all other asteroids to asteroid i
+      for (int j = 0; j < asteroids.length; j++) {
+        if (i != j) {
+          source = asteroids[j];
+          r1 = source.orbit.a;
+          dv = Math.sqrt(Orbit.GM / r1)
+            * (Math.sqrt((2 * r2)/(r1 + r2)) - 1);
+          pushEnergy = source.mass * dv * dv * 0.5;
+          hohmannSums[i] += pushEnergy;
+        }
+      }
+
+      if (hohmannSums[i] < bestEnergy) {
+        bestEnergy = hohmannSums[i];
+        bestAsteroidIndex = i;
+      }
+    }
+    return bestAsteroidIndex;
   }
 
 }
